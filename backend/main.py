@@ -5,6 +5,9 @@ import os
 import subprocess
 import sys
 import tempfile
+import logging
+from logging.handlers import RotatingFileHandler
+import time
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -12,13 +15,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Literal
 from routing import calculate_route, RouteError, RASTER
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 
 BASE = Path(__file__).resolve().parent
 POINTS = json.loads((BASE / "points.json").read_text(encoding="utf-8"))
 BY_ID = {p["id"]: p for p in POINTS}
 ENGINE = os.getenv("ROUTE_ENGINE", "raster").lower()
+LOG_DIR = BASE.parent / 'data' / 'generated'
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+logger = logging.getLogger('olympus.routes')
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    for handler in (logging.StreamHandler(), RotatingFileHandler(LOG_DIR/'api.log', maxBytes=2_000_000, backupCount=2, encoding='utf-8')):
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
+        logger.addHandler(handler)
 
 app = FastAPI(title="Martian Map API", version="0.2.0")
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request, exc):
+    logger.warning('validation_failed path=%s reason=%s', request.url.path, exc.errors())
+    return await request_validation_exception_handler(request, exc)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
@@ -66,11 +85,14 @@ class CoordinateRequest(BaseModel):
 def route_coordinates(request: CoordinateRequest):
     # Each segment preserves all native cell centers; do not simplify the geometry.
     results = []
+    started = time.monotonic()
+    logger.info('route_started payload=%s', request.model_dump_json())
     try:
         for i, (a, b) in enumerate(zip(request.points, request.points[1:])):
             results.append(calculate_route({"id": str(i), **a.model_dump()},
                                            {"id": str(i+1), **b.model_dump()}, request.mission))
     except RouteError as exc:
+        logger.warning('route_rejected elapsed=%.3fs reason=%s payload=%s',time.monotonic()-started,str(exc),request.model_dump_json())
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     result = results[0]
     if len(results) > 1:
@@ -78,6 +100,7 @@ def route_coordinates(request: CoordinateRequest):
                       distanceKm=sum(r["distanceKm"] for r in results), riskFactors=None,
                       geometry={"type":"LineString", "coordinates":[p for r in results for p in r["geometry"]["coordinates"]]},
                       notes=f"{len(results)} tramos consecutivos. " + result["notes"])
+    logger.info('route_completed elapsed=%.3fs distanceKm=%s', time.monotonic()-started,result['distanceKm'])
     return result
 
 @app.get("/points-of-interest")

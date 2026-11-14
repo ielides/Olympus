@@ -1,6 +1,6 @@
 # Olympus — peligrosidad combinada y rutas marcianas
 
-Combina los cuatro rásteres clasificados de geología, accidentes, radiación y pendientes. Muestra el resultado en un mapa 2D y un globo 3D y calcula rutas A* en Python, conectadas al frontend React mediante FastAPI.
+Combina los cuatro rásteres clasificados de geología, accidentes, radiación y pendientes. Muestra el resultado en un mapa 2D y un globo 3D y calcula rutas de menor coste en Python, conectadas al frontend React mediante FastAPI.
 
 ## Regla de combinación
 
@@ -70,7 +70,7 @@ Opcional: `VITE_API_BASE_URL` cambia la dirección de FastAPI al compilar. `HAZA
 
 Admite 2–8 puntos ordenados; conecta cada par consecutivo. La interfaz permite escoger origen y destino. La respuesta incluye GeoJSON `[lon, lat]`, distancia y porcentajes de clases por celdas de la ruta. Las coordenadas se interpretan como grados de longitud este y latitud esférica del CRS marciano de los datos, nunca EPSG:4326 terrestre. `/routes/plan` conserva el contrato por IDs del prototipo.
 
-A* usa ocho vecinos, longitudes geodésicas esféricas con el radio del CRS (3 396 190 m), heurística de distancia directa y promedios de coste de los extremos de cada arista. No cruza diagonalmente entre obstáculos ni suaviza la ruta atravesando celdas excluidas. Costes configurados por nivel 1/2/3: robótica 1/3/9; humana 1/5/20. Son preferencias de planificación explícitas, no umbrales científicos adicionales ni probabilidades de seguridad. No se inventan índices de seguridad o confianza.
+El motor Dijkstra compilado de SciPy usa ocho vecinos, longitudes geodésicas esféricas con el radio del CRS (3 396 190 m) y promedios de coste de los extremos de cada arista. No cruza diagonalmente entre obstáculos ni suaviza la ruta atravesando celdas excluidas. Costes configurados por nivel 1/2/3: robótica 1/3/9; humana 1/5/20. Son preferencias de planificación explícitas, no umbrales científicos adicionales ni probabilidades de seguridad. No se inventan índices de seguridad o confianza.
 
 La búsqueda es **local**, con márgenes de 32, 128 y hasta 512 celdas cuando no encuentra conexión. Límite de 2 millones de celdas y 30 segundos por tramo. La primera ruta hallada es óptima en su ventana, no necesariamente en todo el planeta. No admite cruces del antimeridiano ni polos exactos; reporta esas limitaciones. Los puntos en 4/0 se rechazan, nunca se trasladan automáticamente a terreno vecino.
 
@@ -82,6 +82,12 @@ La búsqueda es **local**, con márgenes de 32, 128 y hasta 512 celdas cuando no
 npm run build
 ```
 
-Pruebas de combinación, NoData, veto del nivel 4, vista conservadora, desvíos A*, esquinas bloqueadas, preferencia por bajo riesgo y validación API. Se verificaron además ventanas contra las cuatro fuentes reales y la ruta de ejemplo (7,17 km, nivel 3 en estas celdas).
+Pruebas de combinación, NoData, veto del nivel 4, vista conservadora, desvíos de menor coste, esquinas bloqueadas, preferencia por bajo riesgo y validación API. Se verificaron además ventanas contra las cuatro fuentes reales y la ruta de ejemplo (7,17 km, nivel 3 en estas celdas).
 
 Se corrigió la carpeta histórica `data/<tab>routing` a `data/routing`, cuyo tabulador impedía el checkout en Windows.
+
+## Corrección de tiempos y diagnóstico
+
+El motor usa Dijkstra compilado con un grafo disperso de ocho vecinos; conserva las mismas distancias, costes y exclusiones del A* de referencia (que permanece para pruebas comparativas). El tamaño máximo sigue siendo 2 millones de celdas. La ventana conserva la resolución nativa. El presupuesto de 30 s se comprueba entre las fases; una llamada nativa ya iniciada puede tardar más en devolver el control.
+
+Cada solicitud registra coordenadas marcianas, tiempo, resultado y motivo de rechazo en `data/generated/api.log` (rotación de 2 MB). Los errores de validación también se registran. Al calcular una ruta, la interfaz abre el mapa 2D centrado en ella; permite volver a la vista planetaria. Los fallos se muestran junto al mapa y debajo del botón. El fondo ampliado sigue siendo la vista global agregada, no una imagen de detalle de 463 m.

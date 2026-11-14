@@ -8,6 +8,8 @@ import time
 import numpy as np
 import rasterio
 from rasterio.windows import Window
+from scipy.sparse import csr_matrix
+from scipy.sparse.csgraph import dijkstra
 
 RASTER = Path(os.getenv("HAZARD_RASTER", str(Path(__file__).resolve().parents[1] / "data/generated/peligrosidad_combinada.tif")))
 MAX_CELLS = 2_000_000
@@ -16,6 +18,56 @@ MAX_SECONDS = 30
 
 class RouteError(ValueError):
     pass
+
+
+def shortest_route(levels, start, end, transform, radius, mission="robotica", deadline=None):
+    """Compiled Dijkstra over the same safe eight-neighbor graph as reference A*."""
+    if mission not in ("robotica", "humana"):
+        raise RouteError("Perfil de misión no válido")
+    h, w = levels.shape
+    if h*w > MAX_CELLS:
+        raise RouteError("Área demasiado grande; elige puntos más cercanos")
+    valid = (levels >= 1) & (levels <= 3)
+    for name, point in (("Origen",start),("Destino",end)):
+        if not valid[point]:
+            raise RouteError(f"{name} en nivel {int(levels[point])} (4 o sin datos); selecciona una celda de nivel 1–3")
+    if start == end:
+        return [start], 0.
+    costs = np.array([0,1,3,9,0] if mission == 'robotica' else [0,1,5,20,0], dtype=np.float64)
+    costs = costs[np.where(valid, levels, 0)]
+    rows, columns, weights = [], [], []
+    deadline = deadline or time.monotonic() + MAX_SECONDS
+    for dr,dc in ((0,1),(1,0),(1,1),(1,-1)):
+        if time.monotonic() > deadline:
+            raise RouteError("El cálculo alcanzó el límite de tiempo; elige puntos más cercanos")
+        r0,r1 = 0,h-dr
+        c0,c1 = max(0,-dc),min(w,w-dc)
+        allowed = valid[r0:r1,c0:c1] & valid[r0+dr:r1+dr,c0+dc:c1+dc]
+        if dr and dc:
+            allowed &= valid[r0:r1,c0+dc:c1+dc] & valid[r0+dr:r1+dr,c0:c1]
+        rr,cc = np.nonzero(allowed)
+        rr = (rr+r0).astype(np.int32); cc = (cc+c0).astype(np.int32)
+        # Equatorial equirectangular CRS: spherical latitudes in radians.
+        lat1 = (transform.f + (rr+.5)*transform.e)/radius
+        lat2 = lat1 + dr*transform.e/radius
+        dlon = dc*transform.a/radius
+        hav = np.sin((lat2-lat1)/2)**2 + np.cos(lat1)*np.cos(lat2)*np.sin(dlon/2)**2
+        length = 2*radius*np.arcsin(np.sqrt(np.clip(hav,0,1)))
+        weights.append(length*(costs[rr,cc]+costs[rr+dr,cc+dc])/2)
+        rows.append(rr*w+cc); columns.append((rr+dr)*w+cc+dc)
+    graph = csr_matrix((np.concatenate(weights),(np.concatenate(rows),np.concatenate(columns))),shape=(h*w,h*w))
+    del rows, columns, weights, costs
+    distances, previous = dijkstra(graph, directed=False, indices=start[0]*w+start[1], return_predecessors=True)
+    if time.monotonic() > deadline:
+        raise RouteError("El cálculo alcanzó el límite de tiempo; elige puntos más cercanos")
+    target = end[0]*w+end[1]
+    if not np.isfinite(distances[target]):
+        return None, None
+    path = [end]
+    while path[-1] != start:
+        target = int(previous[target])
+        path.append(divmod(target,w))
+    return path[::-1], float(distances[end[0]*w+end[1]])
 
 
 def distance(a, b, radius):
@@ -105,7 +157,7 @@ def calculate_route(origin, destination, mission):
             levels = src.read(1, window=window, masked=True).filled(0)
             transform = src.window_transform(window)
             start,end = [(r-top,c-left) for r,c in endpoints]
-            path, _ = astar(levels, start, end, transform, radius, mission, deadline)
+            path, _ = shortest_route(levels, start, end, transform, radius, mission, deadline)
             if path:
                 break
         if not path:
@@ -122,7 +174,7 @@ def calculate_route(origin, destination, mission):
             "distanceKm": round(length/1000, 4), "safetyIndex": None, "dataConfidence": None,
             "status": "calculada", "geometry": {"type":"LineString", "coordinates":coords},
             "riskFactors": {f"nivel{i}Pct": round(float(np.mean(samples == i))*100, 2) for i in (1,2,3)},
-            "notes": (f"A* sobre celdas de {src.res[0]:.2f} m; máximo de las cuatro capas. "
+            "notes": (f"Dijkstra compilado sobre celdas de {src.res[0]:.2f} m; máximo de las cuatro capas. "
                       f"Niveles 4 y sin datos excluidos. Búsqueda local con margen de {margin} celdas. "
                       "Porcentajes por celdas de la ruta; no representan una probabilidad de seguridad."),
         }

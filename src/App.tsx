@@ -26,7 +26,7 @@ export default function App() {
   const update=(index:number,key:keyof Coordinate,value:string)=>{
     setPoints(old=>old.map((p,i)=>i===index?{...p,[key]:Number(value)}:p));clear();
   };
-  const plan=async()=>{setLoading(true);clear();try{setResult(await planCoordinates(points,mission));}
+  const plan=async()=>{setLoading(true);clear();try{setResult(await planCoordinates(points,mission));setView('2d');}
     catch(e){setError(e instanceof Error?e.message:String(e));}finally{setLoading(false);}};
   const total=manifest?Object.values(manifest.counts).reduce((a,b)=>a+b,0):0;
   const labels=['Sin datos · excluido','1 · Menor peligrosidad','2 · Moderada','3 · Alta','4 · Exploración excluida'];
@@ -51,6 +51,7 @@ export default function App() {
       <section className="globe-area">
         <div className="globe-title"><span className="eyebrow">EXPLORACIÓN PLANETARIA</span><h1>Un planeta, cuatro factores</h1><p>{view==='3d'?'Arrastra para girar · Desplázate para acercar':'Amplía el mapa para explorar'} · Clic para colocar {active===0?'origen':'destino'}</p></div>
         <div className="view-toggle segmented"><button className={view==='3d'?'active':''} onClick={()=>setView('3d')}>Globo 3D</button><button className={view==='2d'?'active':''} onClick={()=>setView('2d')}>Mapa 2D</button></div>
+        {(loading||error||result)&&<div className={`route-banner ${error?'route-failed':''}`} role={error?'alert':'status'}>{loading?'Buscando conexión entre celdas transitables…':error?`No se pudo calcular: ${error}`:`Ruta calculada: ${result!.distanceKm.toFixed(2)} km · Vista ampliada en 2D`}</div>}
         {manifest ? view==='3d'?<MarsGlobe points={markers} selectedId={String(active)} onSelect={id=>setActive(Number(id))} onPick={pick} manifest={manifest} routeCoordinates={result?.geometry.coordinates}/>:<MarsMap manifest={manifest} points={points} onPick={pick} route={result?.geometry.coordinates}/>:<div className="map-message" role="status">{mapError||'Cargando peligrosidad combinada…'}</div>}
         <div className="legend"><span><i className="legend-dot mint"/> A · Origen</span><span><i className="legend-dot amber"/> B · Destino</span><span><i className="legend-line"/> Ruta sin nivel 4</span></div>
       </section>
