@@ -1,0 +1,45 @@
+Unit_Code,Nivel_Viabilidad,Categoria,Criterio_Detallado
+AHi,3,3 - Dificil pero sobrevive maquina,Dificil: Manto de eyeccion de impacto caotico con bloques rocosos
+AHtu,3,3 - Dificil pero sobrevive maquina,Dificil: Unidad transicional rugosa indivisa
+AHv,2,2 - Bueno pero no tan bueno,Bueno: Unidad volcanica transicional
+ANa,1,1 - Factible,Factible: Piedemonte suave transicional
+Aa,1,1 - Factible,Factible: Piedemonte/apron suave del Amazoniano
+Ap,4,4 - Inviable para vida o maquina,Inviable: Unidad polar congelada inestable
+Apu,4,4 - Inviable para vida o maquina,Inviable: Unidad polar no dividida
+Av,2,2 - Bueno pero no tan bueno,"Bueno: Llanura volcanica del Amazoniano, suelo firme pero basalto rugoso"
+Ave,4,4 - Inviable para vida o maquina,"Inviable: Edificio volcanico masivo (Tharsis/Elysium), pendientes extremas"
+HNb,1,1 - Factible,Factible: Fondo de cuenca sedimentaria suave Hesperiano-Noachiano
+HNhu,3,3 - Dificil pero sobrevive maquina,Dificil: Tierras altas rugosas Hesperiano-Noachiano
+HNt,3,3 - Dificil pero sobrevive maquina,Dificil: Transicion hesperiana-noachiana con pendientes locales
+Hp,4,4 - Inviable para vida o maquina,Inviable: Unidad polar hesperiana
+Hpe,4,4 - Inviable para vida o maquina,Inviable: Edificio polar escarpado
+Hpu,4,4 - Inviable para vida o maquina,Inviable: Unidad polar hesperiana no dividida
+Ht,3,3 - Dificil pero sobrevive maquina,Dificil: Terreno de transicion rugoso del Hesperiano
+Hto,3,3 - Dificil pero sobrevive maquina,Dificil: Canal de inundacion y desbordamiento caotico con bloques gigantes
+Htu,3,3 - Dificil pero sobrevive maquina,Dificil: Transicion hesperiana irregular
+Hve,4,4 - Inviable para vida o maquina,Inviable: Edificio volcanico del Hesperiano
+Nhe,4,4 - Inviable para vida o maquina,Inviable: Edificio montanoso de tierras altas
+Nhu,3,3 - Dificil pero sobrevive maquina,"Dificil: Tierras altas no divididas del Noachiano, relieve aspero"
+Nve,4,4 - Inviable para vida o maquina,Inviable: Edificio volcanico antiguo muy escarpado
+eAb,1,1 - Factible,Factible: Cuenca suave del Amazoniano temprano
+eHb,1,1 - Factible,Factible: Cuenca de tierras bajas del Hesperiano temprano
+eHh,2,2 - Bueno pero no tan bueno,Bueno: Tierras altas moderadas del Hesperiano temprano
+eHt,3,3 - Dificil pero sobrevive maquina,Dificil: Transicion con relieve quebrado del Hesperiano temprano
+eHv,2,2 - Bueno pero no tan bueno,Bueno: Llanura de lava del Hesperiano temprano
+eNh,3,3 - Dificil pero sobrevive maquina,"Dificil: Tierras altas del Noachiano temprano, muy craterizadas y con rocas"
+eNhm,3,3 - Dificil pero sobrevive maquina,"Dificil: Macizo montanoso del Noachiano temprano, fuerte rugosidad"
+lAa,1,1 - Factible,Factible: Piedemonte/apron suave del Amazoniano tardio
+lApc,4,4 - Inviable para vida o maquina,"Inviable: Casquete polar de hielo permanente CO2/H2O, grietas y frio criogenico"
+lApd,4,4 - Inviable para vida o maquina,"Inviable: Campos de dunas polares gigantes, arenas sueltas atrapa-rovers"
+lAv,2,2 - Bueno pero no tan bueno,Bueno: Llanura volcanica del Amazoniano tardio
+lAvf,2,2 - Bueno pero no tan bueno,Bueno: Campo volcanico plano del Amazoniano tardio
+lHb,1,1 - Factible,Factible: Cuenca suave del Hesperiano tardio
+lHl,1,1 - Factible,"Factible: Llanura baja del norte (Vastitas Borealis), terreno llano y estable"
+lHt,3,3 - Dificil pero sobrevive maquina,Dificil: Terreno transicional del Hesperiano tardio
+lHv,2,2 - Bueno pero no tan bueno,Bueno: Llanura volcanica del Hesperiano tardio
+lHvf,2,2 - Bueno pero no tan bueno,Bueno: Campo volcanico del Hesperiano tardio
+lNh,2,2 - Bueno pero no tan bueno,"Bueno: Tierras altas del Noachiano tardio, craterizacion moderada"
+lNv,2,2 - Bueno pero no tan bueno,Bueno: Llanura volcanica antigua del Noachiano tardio
+mAl,1,1 - Factible,"Factible: Llanura baja del Amazoniano medio, plana"
+mNh,2,2 - Bueno pero no tan bueno,Bueno: Tierras altas intermedias del Noachiano medio
+mNhm,3,3 - Dificil pero sobrevive maquina,Dificil: Macizo montanoso del Noachiano medio

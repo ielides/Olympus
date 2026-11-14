@@ -11,7 +11,8 @@ def test_points():
     assert response.status_code == 200
     assert any(p["kind"] == "aterrizaje" for p in response.json())
 
-def test_route_demo():
+def test_route_demo(monkeypatch):
+    monkeypatch.setattr('main.ENGINE', 'demo')
     response = client.post("/routes/plan", json={"originId":"landing-jezero", "destinationId":"delta-jezero", "mission":"robotica"})
     assert response.status_code == 200
     data = response.json()
@@ -27,3 +28,16 @@ def test_invalid_origin():
 def test_other_region():
     response = client.post("/routes/plan", json={"originId":"landing-jezero", "destinationId":"gale", "mission":"humana"})
     assert response.status_code == 400
+
+
+def test_coordinates_validated():
+    response=client.post('/routes/coordinates',json={'points':[{'lon':200,'lat':0},{'lon':0,'lat':0}]})
+    assert response.status_code == 422
+
+
+def test_coordinates_do_not_fallback_to_demo(monkeypatch):
+    from pathlib import Path
+    monkeypatch.setattr('routing.RASTER',Path('missing-file.tif'))
+    response=client.post('/routes/coordinates',json={'points':[{'lon':0,'lat':0},{'lon':1,'lat':0}]})
+    assert response.status_code==422
+    assert 'Genera primero' in response.json()['detail']

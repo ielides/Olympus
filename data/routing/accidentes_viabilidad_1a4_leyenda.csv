@@ -1,0 +1,15 @@
+Tipo_Accidente,Nivel_Viabilidad,Categoria,Criterio_Detallado
+(Terreno libre sin accidentes),1,1 - Factible,"Zona plana libre de fallas, escarpes o fosas"
+Caldera rim,4,4 - Inviable para vida o maquina,"Inviable: Borde de caldera volcanica, precipicio vertical"
+Channel axis,3,3 - Dificil pero sobrevive maquina,"Dificil: Cauce de canal fluvial, suelo pedregoso"
+Crater rim,4,4 - Inviable para vida o maquina,Inviable: Borde de crater escarpado y fracturado
+Graben axis,4,4 - Inviable para vida o maquina,Inviable: Eje de fosa tectonica profunda / sima
+Lobate flow,3,3 - Dificil pero sobrevive maquina,Dificil: Frente de lava lobulada escalonado
+Outflow Channel,3,3 - Dificil pero sobrevive maquina,Dificil: Lecho de inundacion masiva con bloques de impacto
+Pit crater chain,4,4 - Inviable para vida o maquina,Inviable: Cadena de colapso y tubos de lava huecos (riesgo de derrumbe)
+Ridge,3,3 - Dificil pero sobrevive maquina,Dificil: Cresta dorsal con pendiente moderada-alta
+Rille,4,4 - Inviable para vida o maquina,Inviable: Grieta colapsada profunda y estrecha
+Scarp,4,4 - Inviable para vida o maquina,Inviable: Escarpe de falla o acantilado vertical intransitable
+Spiral trough,4,4 - Inviable para vida o maquina,Inviable: Fosa espiral polar en glaciar de hielo
+Wrinkle ridge,2,2 - Bueno pero no tan bueno,"Bueno: Cresta de arruga compresiva suave, transitable"
+Yardangs,3,3 - Dificil pero sobrevive maquina,Dificil: Surcos eolicos paralelos cortantes (requiere slalom)

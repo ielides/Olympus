@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { ArcRotateCamera, Color3, Color4, Engine, HemisphericLight, MeshBuilder, Scene, StandardMaterial, Vector3 } from '@babylonjs/core';
-import type { PointOfInterest } from '../types/mission';
+import { ArcRotateCamera, Camera, Color3, Color4, Engine, HemisphericLight, Mesh, MeshBuilder, Scene, StandardMaterial, Texture, Vector3, VertexData } from '@babylonjs/core';
+import type { PointOfInterest, Coordinate, HazardManifest } from '../types/mission';
 
 type Props = {
   points: PointOfInterest[]; selectedId: string; onSelect: (id: string) => void;
   routeCoordinates?: [number, number][];
+  manifest: HazardManifest;
+  onPick: (point: Coordinate) => void;
 };
 const RADIUS = 4;
 
@@ -28,10 +30,12 @@ function interpolateOnSphere(a: Vector3, b: Vector3, count = 8): Vector3[] {
   });
 }
 
-export default function MarsGlobe({ points, selectedId, onSelect, routeCoordinates }: Props) {
+export default function MarsGlobe({ points, selectedId, onSelect, routeCoordinates, manifest, onPick }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const selectRef = useRef(onSelect);
   selectRef.current = onSelect;
+  const pickRef = useRef(onPick);
+  pickRef.current = onPick;
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -40,16 +44,28 @@ export default function MarsGlobe({ points, selectedId, onSelect, routeCoordinat
     scene.clearColor = new Color4(0.035, 0.075, 0.13, 1);
     const camera = new ArcRotateCamera('camera', -Math.PI / 2.8, Math.PI / 2.45, 12.5, Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
+    camera.fovMode = Camera.FOVMODE_HORIZONTAL_FIXED;
     camera.lowerRadiusLimit = 5.3;
     camera.upperRadiusLimit = 22;
     camera.wheelPrecision = 38;
     const sun = new HemisphericLight('light', new Vector3(1, 1, 0), scene);
     sun.intensity = 1.35;
-    const globe = MeshBuilder.CreateSphere('mars', { diameter: RADIUS * 2, segments: 64 }, scene);
+    // Explicit lon/lat mesh: markers and both maps share the same registration.
+    const globe = new Mesh('mars', scene);
+    const positions: number[] = [], normals: number[] = [], uvs: number[] = [], indices: number[] = [];
+    const [west,south,east,north] = manifest.boundsLonLat;
+    for(let r=0;r<=90;r++) for(let c=0;c<=180;c++) {
+      const lon=-180+c*2, lat=90-r*2;
+      const pos=toPosition(lat,lon);
+      positions.push(pos.x,pos.y,pos.z); normals.push(pos.x/RADIUS,pos.y/RADIUS,pos.z/RADIUS);
+      uvs.push((lon-west)/(east-west),(lat-south)/(north-south));
+      if(r<90&&c<180) {const a=r*181+c;indices.push(a,a+181,a+1,a+1,a+181,a+182);}
+    }
+    const data = new VertexData(); data.positions=positions;data.normals=normals;data.uvs=uvs;data.indices=indices;data.applyToMesh(globe);
     const mat = new StandardMaterial('mars-material', scene);
-    mat.diffuseColor = new Color3(0.61, 0.31, 0.19);
-    mat.specularColor = new Color3(0.07, 0.04, 0.03);
-    globe.material = mat; // Esfera provisional: sustituir por textura de Marte.
+    mat.diffuseTexture = new Texture('/data/hazard.png', scene, true, true, Texture.NEAREST_SAMPLINGMODE);
+    mat.disableLighting = true; mat.emissiveColor = Color3.White(); mat.backFaceCulling = false;
+    globe.material = mat;
     const markers = points.map(p => {
       const marker = MeshBuilder.CreateSphere(p.id, { diameter: p.kind === 'aterrizaje' ? 0.19 : 0.14, segments: 12 }, scene);
       marker.position = toPosition(p.lat, p.lon, RADIUS + 0.12);
@@ -60,9 +76,13 @@ export default function MarsGlobe({ points, selectedId, onSelect, routeCoordinat
       return marker;
     });
     const observer = scene.onPointerObservable.add(info => {
-      if (info.type !== 1) return;
+      if (info.type !== 32) return; // POINTERTAP: rotation does not move route endpoints.
       const id = info.pickInfo?.pickedMesh?.name;
       if (id && points.some(p => p.id === id)) selectRef.current(id);
+      else if (id === 'mars' && info.pickInfo?.pickedPoint) {
+        const p=info.pickInfo.pickedPoint.normalize();
+        pickRef.current({lon:Math.atan2(p.z,p.x)*180/Math.PI,lat:Math.asin(p.y)*180/Math.PI});
+      }
     });
     let routeMesh: ReturnType<typeof MeshBuilder.CreateLines> | undefined;
     if (routeCoordinates && routeCoordinates.length >= 2) {
@@ -86,6 +106,6 @@ export default function MarsGlobe({ points, selectedId, onSelect, routeCoordinat
       markers.forEach(m => m.dispose());
       scene.dispose(); engine.dispose();
     };
-  }, [points, selectedId, routeCoordinates]);
+  }, [points, selectedId, routeCoordinates, manifest]);
   return <canvas ref={canvasRef} className="mars-canvas" aria-label="Globo marciano tridimensional interactivo" />;
 }

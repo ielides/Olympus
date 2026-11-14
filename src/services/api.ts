@@ -1,4 +1,4 @@
-import type { PointOfInterest, RouteResult, MissionType } from '../types/mission';
+import type { PointOfInterest, RouteResult, MissionType, Coordinate } from '../types/mission';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -18,8 +18,14 @@ export async function fetchPoints(): Promise<PointOfInterest[]> {
   return parseResponse<PointOfInterest[]>(await fetch(`${API_BASE}/points-of-interest`));
 }
 
-export async function fetchHealth(): Promise<{status: string; route_engine: string}> {
+export async function fetchHealth(): Promise<{status: string; route_engine: string; rasterReady: boolean}> {
   return parseResponse(await fetch(`${API_BASE}/health`));
+}
+
+export async function planCoordinates(points: Coordinate[], mission: MissionType): Promise<RouteResult> {
+  return parseResponse<RouteResult>(await fetch(`${API_BASE}/routes/coordinates`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({points, mission}),
+  }));
 }
 
 export async function planRoute(originId: string, destinationId: string, mission: MissionType): Promise<RouteResult> {

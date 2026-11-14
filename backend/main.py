@@ -11,11 +11,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Literal
+from routing import calculate_route, RouteError, RASTER
 
 BASE = Path(__file__).resolve().parent
 POINTS = json.loads((BASE / "points.json").read_text(encoding="utf-8"))
 BY_ID = {p["id"]: p for p in POINTS}
-ENGINE = os.getenv("ROUTE_ENGINE", "demo").lower()
+ENGINE = os.getenv("ROUTE_ENGINE", "raster").lower()
 
 app = FastAPI(title="Martian Map API", version="0.2.0")
 app.add_middleware(
@@ -47,7 +48,37 @@ class RouteResponse(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "route_engine": ENGINE}
+    return {"status": "ok" if ENGINE != "raster" or RASTER.is_file() else "datos_pendientes",
+            "route_engine": ENGINE, "rasterReady": RASTER.is_file()}
+
+
+class Coordinate(BaseModel):
+    lon: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    lat: float = Field(gt=-90, lt=90, allow_inf_nan=False)
+
+
+class CoordinateRequest(BaseModel):
+    points: list[Coordinate] = Field(min_length=2, max_length=8)
+    mission: Literal["robotica", "humana"] = "robotica"
+
+
+@app.post("/routes/coordinates", response_model=RouteResponse)
+def route_coordinates(request: CoordinateRequest):
+    # Each segment preserves all native cell centers; do not simplify the geometry.
+    results = []
+    try:
+        for i, (a, b) in enumerate(zip(request.points, request.points[1:])):
+            results.append(calculate_route({"id": str(i), **a.model_dump()},
+                                           {"id": str(i+1), **b.model_dump()}, request.mission))
+    except RouteError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    result = results[0]
+    if len(results) > 1:
+        result = dict(result, destinationId=results[-1]["destinationId"],
+                      distanceKm=sum(r["distanceKm"] for r in results), riskFactors=None,
+                      geometry={"type":"LineString", "coordinates":[p for r in results for p in r["geometry"]["coordinates"]]},
+                      notes=f"{len(results)} tramos consecutivos. " + result["notes"])
+    return result
 
 @app.get("/points-of-interest")
 def points_of_interest():
@@ -110,6 +141,11 @@ def plan_route(request: RouteRequest):
         raise HTTPException(status_code=400, detail="Este prototipo solo admite rutas dentro de la misma región")
     if ENGINE == "demo":
         return great_circle_demo(origin, destination)
+    if ENGINE == "raster":
+        try:
+            return calculate_route(origin, destination, request.mission)
+        except RouteError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     if ENGINE == "pyqgis":
         result = run_pyqgis({"origin": origin, "destination": destination, "mission": request.mission})
         try:

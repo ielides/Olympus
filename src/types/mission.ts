@@ -1,5 +1,13 @@
 export type MissionType = 'robotica' | 'humana';
 export type LayerKey = 'topografia' | 'termica' | 'optica';
+export type Coordinate = { lon: number; lat: number };
+export interface HazardManifest {
+  resolutionM: number;
+  boundsLonLat: [number, number, number, number];
+  counts: Record<string, number>;
+  previewFactor: number;
+  generatedAt: string;
+}
 
 export interface PointOfInterest {
   id: string;
