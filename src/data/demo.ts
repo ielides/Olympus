@@ -1,0 +1,40 @@
+import type { PointOfInterest } from '../types/mission';
+// Respaldo para que el globo funcione aunque la API esté desconectada.
+export const points: PointOfInterest[] = [
+  {
+    "id": "landing-jezero",
+    "name": "Zona de referencia Jezero",
+    "kind": "aterrizaje",
+    "region": "Jezero",
+    "lat": 18.45,
+    "lon": 77.45,
+    "detail": "Ubicación aproximada de referencia para probar la interfaz. No certificada para aterrizaje humano o robótico."
+  },
+  {
+    "id": "delta-jezero",
+    "name": "Delta de Jezero",
+    "kind": "ciencia",
+    "region": "Jezero",
+    "lat": 18.5,
+    "lon": 77.35,
+    "detail": "Objetivo sedimentario ilustrativo."
+  },
+  {
+    "id": "crater-jezero",
+    "name": "Interior del cráter",
+    "kind": "ciencia",
+    "region": "Jezero",
+    "lat": 18.42,
+    "lon": 77.5,
+    "detail": "Objetivo ilustrativo de estudio geológico."
+  },
+  {
+    "id": "gale",
+    "name": "Monte Sharp",
+    "kind": "ciencia",
+    "region": "Gale",
+    "lat": -5.08,
+    "lon": 137.85,
+    "detail": "Región explorada por Curiosity. Fuera del ámbito de rutas de Jezero de esta demo."
+  }
+];
