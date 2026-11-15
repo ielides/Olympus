@@ -2,6 +2,7 @@
 import argparse
 from contextlib import ExitStack
 from datetime import datetime, timezone
+import itertools
 import json
 from pathlib import Path
 import time
@@ -58,15 +59,18 @@ def check_grid(source, reference):
         raise ValueError(f"Transformación incompatible: {source.name}")
     if not source.crs or not source.crs.is_projected or source.crs.linear_units != "metre":
         raise ValueError("Se requiere una cuadrícula marciana proyectada en metros")
-    if not all(350 <= resolution <= 500 for resolution in source.res):
-        raise ValueError("Solo se admiten datos de aproximadamente 400 m (350–500 m)")
+    if not all(0.5 <= resolution <= 1000 for resolution in source.res):
+        raise ValueError("Solo se admiten datos marcianos entre 0.5 m y 1000 m por píxel")
     if "mars" not in source.crs.to_wkt().lower() or "jezero_dem" in str(source.name).lower():
         raise ValueError("Se requiere CRS de Marte; no se admite el DEM de Jezero")
 
 
 def overview_block(values, factor):
     h, w = values.shape
-    blocks = values.reshape(h // factor, factor, w // factor, factor)
+    ch, cw = (h // factor) * factor, (w // factor) * factor
+    if ch == 0 or cw == 0:
+        return np.zeros((0, 0), dtype=np.uint8)
+    blocks = values[:ch, :cw].reshape(ch // factor, factor, cw // factor, factor)
     result = blocks.max(axis=(1, 3))
     unknown = (blocks == 0).any(axis=(1, 3))
     result[unknown & (result != 4)] = 0
@@ -162,6 +166,36 @@ def build_all(input_dir, output_dir, public_dir, factor=16):
                 with rasterio.open(public_dir / "hazard.png", "w", driver="PNG", width=rgb.shape[1],
                                    height=rgb.shape[0], count=3, dtype="uint8") as dst_png:
                     dst_png.write(rgb.transpose(2, 0, 1))
+
+        # Ensure pendientes_mola.png exists for frontend compatibility
+        mola_png = layers_dir / "pendientes_mola.png"
+        if not mola_png.exists():
+            mola_rgb = np.asarray(COLORS, dtype=np.uint8)[overviews["pendientes"]]
+            with rasterio.open(mola_png, "w", driver="PNG", width=mola_rgb.shape[1],
+                               height=mola_rgb.shape[0], count=3, dtype="uint8") as dst_png:
+                dst_png.write(mola_rgb.transpose(2, 0, 1))
+
+        # Generate all 15 non-empty sorted multi-layer composites
+        comp_dir = layers_dir / "composites"
+        comp_dir.mkdir(parents=True, exist_ok=True)
+        base_keys = sorted(SOURCES.keys())
+        for r in range(1, len(base_keys) + 1):
+            for combo in itertools.combinations(base_keys, r):
+                arrays = [overviews[key] for key in combo]
+                comp_levels = np.zeros_like(arrays[0])
+                known = np.ones(comp_levels.shape, dtype=bool)
+                blocked = np.zeros(comp_levels.shape, dtype=bool)
+                for arr in arrays:
+                    valid = np.isin(arr, [1, 2, 3, 4])
+                    known &= valid
+                    blocked |= arr == 4
+                    np.maximum(comp_levels, np.where(valid, arr, 0), out=comp_levels)
+                comp_levels[~known] = 0
+                comp_levels[blocked] = 4
+                comp_rgb = np.asarray(COLORS, dtype=np.uint8)[comp_levels]
+                with rasterio.open(comp_dir / f"{'_'.join(combo)}.png", "w", driver="PNG",
+                                   width=comp_rgb.shape[1], height=comp_rgb.shape[0], count=3, dtype="uint8") as dst_png:
+                    dst_png.write(comp_rgb.transpose(2, 0, 1))
 
         # Build manifests
         total_cells = ref.width * ref.height

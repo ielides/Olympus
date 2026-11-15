@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-15T01:11:43.520589+00:00",
+  "generatedAt": "2026-11-15T03:34:15.435912+00:00",
   "rule": "maximum",
   "sources": {
     "geologia": "geologia_viabilidad_1a4.tif",
@@ -11,24 +11,24 @@
     0,
     4
   ],
-  "resolutionM": 463.0935415503709,
-  "width": 46080,
-  "height": 23040,
+  "resolutionM": 1.0105412400975,
+  "width": 6624,
+  "height": 10848,
   "radiusM": 3396190.0,
   "boundsLonLat": [
-    -180.00387421842743,
-    -90.00193710921371,
-    180.00387421842743,
-    90.00193710921371
+    175.44184042127304,
+    -14.67749272297742,
+    175.55476930077972,
+    -14.492551224654841
   ],
   "counts": {
-    "0": 4146904,
-    "1": 192468513,
-    "2": 115914409,
-    "3": 307412531,
-    "4": 441740843
+    "0": 16481364,
+    "1": 19589272,
+    "2": 26375819,
+    "3": 8755541,
+    "4": 655156
   },
-  "previewFactor": 16,
+  "previewFactor": 4,
   "previewRule": "4 > sin datos > m\u00e1ximo de 1\u20133",
   "previewNote": "Vista global conservadora; las rutas usan el GeoTIFF a resoluci\u00f3n original.",
   "colors": [

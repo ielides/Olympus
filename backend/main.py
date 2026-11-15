@@ -40,7 +40,7 @@ async def validation_error(request, exc):
     return await request_validation_exception_handler(request, exc)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:5173", "http://127.0.0.1:5173"],
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
 )
@@ -100,10 +100,24 @@ def route_coordinates(request: CoordinateRequest):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     result = results[0]
     if len(results) > 1:
-        result = dict(result, destinationId=results[-1]["destinationId"],
-                      distanceKm=sum(r["distanceKm"] for r in results), riskFactors=None,
-                      geometry={"type":"LineString", "coordinates":[p for r in results for p in r["geometry"]["coordinates"]]},
-                      notes=f"{len(results)} tramos consecutivos. " + result["notes"])
+        coords = list(results[0]["geometry"]["coordinates"])
+        for r in results[1:]:
+            coords.extend(r["geometry"]["coordinates"][1:])
+        total_km = round(sum(r["distanceKm"] for r in results), 4)
+        weight_sum = sum(max(r["distanceKm"], 1e-6) for r in results)
+        agg_risk = {
+            k: round(sum((r["riskFactors"] or {}).get(k, 0.0) * max(r["distanceKm"], 1e-6) for r in results) / weight_sum, 2)
+            for k in ("nivel1Pct", "nivel2Pct", "nivel3Pct")
+        }
+        segments_desc = ", ".join(f"{r['distanceKm']:.2f} km" for r in results)
+        result = dict(
+            result,
+            destinationId=results[-1]["destinationId"],
+            distanceKm=total_km,
+            riskFactors=agg_risk,
+            geometry={"type": "LineString", "coordinates": coords},
+            notes=f"Ruta multipunto de {len(results)} tramos ({segments_desc}). " + result["notes"],
+        )
     logger.info('route_completed elapsed=%.3fs distanceKm=%s', time.monotonic()-started,result['distanceKm'])
     return result
 

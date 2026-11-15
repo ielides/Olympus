@@ -45,7 +45,7 @@ def test_coordinates_do_not_fallback_to_demo(monkeypatch):
 
 def test_custom_active_layers():
     response = client.post('/routes/coordinates', json={
-        'points': [{'lon': 77.45, 'lat': 18.45}, {'lon': 77.35, 'lat': 18.5}],
+        'points': [{'lon': 175.51095, 'lat': -14.54415}, {'lon': 175.50893, 'lat': -14.64257}],
         'mission': 'robotica',
         'activeLayers': ['geologia', 'pendientes']
     })
@@ -63,4 +63,21 @@ def test_empty_active_layers():
     })
     assert response.status_code == 422
     assert 'al menos una capa' in response.json()['detail']
+
+
+def test_multipoint_human_profile():
+    response = client.post('/routes/coordinates', json={
+        'points': [
+            {'lon': 175.51095, 'lat': -14.54415},
+            {'lon': 175.508, 'lat': -14.585},
+            {'lon': 175.50893, 'lat': -14.64257},
+        ],
+        'mission': 'humana',
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data['distanceKm'] > 0
+    assert data['riskFactors'] is not None
+    assert data['riskFactors']['nivel3Pct'] == 0
+    assert '2 tramos' in data['notes']
 

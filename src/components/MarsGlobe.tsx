@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { PointOfInterest, Coordinate, HazardManifest } from '../types/mission';
@@ -16,86 +16,92 @@ type Props = {
   shadowOpacity?: number;
 };
 
-const RADIUS = 4.0;
+type DemGrid = {
+  width: number;
+  height: number;
+  boundsLonLat: [number, number, number, number];
+  elevNorm: number[];
+};
 
-/**
- * Position the directional solar light and visual sun indicator along an orbital angle.
- */
-function updateSunPosition(
-  angleDeg: number,
-  light: THREE.DirectionalLight,
-  indicator?: THREE.Mesh | null
-) {
+const DISPLACEMENT_SCALE = 0.65;
+const DISPLACEMENT_BIAS = -0.15;
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function updateSunPosition(angleDeg: number, light: THREE.DirectionalLight, indicator?: THREE.Mesh | null) {
   const rad = (angleDeg * Math.PI) / 180.0;
-  const dist = 12.0;
+  const dist = 14.0;
   const x = Math.cos(rad) * dist;
-  const y = Math.sin(rad * 0.5) * 2.5 + 2.2;
+  const y = 6.5 + Math.sin(rad * 0.5) * 3.0;
   const z = Math.sin(rad) * dist;
   light.position.set(x, y, z);
   if (indicator) {
-    indicator.position.set(x * 0.52, y * 0.52, z * 0.52);
+    indicator.position.set(x * 0.62, y * 0.62, z * 0.62);
   }
 }
 
-/**
- * Convert lat/lon (degrees, [-90, 90] and [-180, 180]) to 3D Cartesian coordinates
- * exactly matching Three.js equirectangular UV mapping.
- */
-function toPosition(lat: number, lon: number, radius = RADIUS): THREE.Vector3 {
-  const u = (lon + 180.0) / 360.0;
-  const v = (lat + 90.0) / 180.0;
-  const phi = (1.0 - v) * Math.PI;
-  const theta = u * 2.0 * Math.PI;
+function sampleElevation(
+  lon: number,
+  lat: number,
+  bounds: [number, number, number, number],
+  grid: DemGrid | null
+): number {
+  if (!grid || !grid.elevNorm.length) {
+    return DISPLACEMENT_BIAS + 0.35 * DISPLACEMENT_SCALE;
+  }
+  const [west, south, east, north] = bounds;
+  const u = clamp((lon - west) / Math.max(1e-6, east - west), 0, 1);
+  const vRow = clamp((north - lat) / Math.max(1e-6, north - south), 0, 1);
+  const cf = u * (grid.width - 1);
+  const rf = vRow * (grid.height - 1);
+  const c0 = Math.floor(cf);
+  const r0 = Math.floor(rf);
+  const c1 = Math.min(grid.width - 1, c0 + 1);
+  const r1 = Math.min(grid.height - 1, r0 + 1);
+  const tx = cf - c0;
+  const ty = rf - r0;
 
-  const x = -radius * Math.cos(theta) * Math.sin(phi);
-  const y = radius * Math.cos(phi);
-  const z = radius * Math.sin(theta) * Math.sin(phi);
+  const h00 = grid.elevNorm[r0 * grid.width + c0];
+  const h10 = grid.elevNorm[r0 * grid.width + c1];
+  const h01 = grid.elevNorm[r1 * grid.width + c0];
+  const h11 = grid.elevNorm[r1 * grid.width + c1];
+  const h = (h00 * (1 - tx) + h10 * tx) * (1 - ty) + (h01 * (1 - tx) + h11 * tx) * ty;
+  return DISPLACEMENT_BIAS + h * DISPLACEMENT_SCALE;
+}
 
+function lonLatToWorld(
+  lon: number,
+  lat: number,
+  bounds: [number, number, number, number],
+  terrainW: number,
+  terrainD: number,
+  grid: DemGrid | null,
+  heightOffset = 0.05
+): THREE.Vector3 {
+  const [west, south, east, north] = bounds;
+  const u = clamp((lon - west) / Math.max(1e-6, east - west), 0, 1);
+  const vRow = clamp((north - lat) / Math.max(1e-6, north - south), 0, 1);
+  const x = (u - 0.5) * terrainW;
+  const z = (vRow - 0.5) * terrainD;
+  const y = sampleElevation(lon, lat, bounds, grid) + heightOffset;
   return new THREE.Vector3(x, y, z);
 }
 
-/**
- * Inverse conversion: from 3D point on globe surface back to (lat, lon) in degrees.
- */
-function toLatLon(point: THREE.Vector3): Coordinate {
-  const r = point.length();
-  const phi = Math.acos(Math.max(-1.0, Math.min(1.0, point.y / r)));
-  const lat = 90.0 - (phi / Math.PI) * 180.0;
-
-  const theta = Math.atan2(point.z, -point.x);
-  const u = ((theta / (2.0 * Math.PI)) + 1.0) % 1.0;
-  let lon = u * 360.0 - 180.0;
-
-  return { lat, lon };
-}
-
-/**
- * Spherical linear interpolation (Slerp) along great circle path between two 3D positions.
- */
-function interpolateGreatCircle(v0: THREE.Vector3, v1: THREE.Vector3, count = 12, heightOffset = 0.04): THREE.Vector3[] {
-  const p0 = v0.clone().normalize();
-  const p1 = v1.clone().normalize();
-  const dot = Math.max(-1.0, Math.min(1.0, p0.dot(p1)));
-  const omega = Math.acos(dot);
-  const sinOmega = Math.sin(omega);
-
-  if (sinOmega < 1e-6) {
-    return [p0.multiplyScalar(RADIUS + heightOffset), p1.multiplyScalar(RADIUS + heightOffset)];
-  }
-
-  const result: THREE.Vector3[] = [];
-  for (let i = 0; i <= count; i++) {
-    const t = i / count;
-    const s0 = Math.sin((1.0 - t) * omega) / sinOmega;
-    const s1 = Math.sin(t * omega) / sinOmega;
-    const pt = new THREE.Vector3()
-      .addScaledVector(p0, s0)
-      .addScaledVector(p1, s1)
-      .normalize()
-      .multiplyScalar(RADIUS + heightOffset);
-    result.push(pt);
-  }
-  return result;
+function worldToLatLon(
+  point: THREE.Vector3,
+  bounds: [number, number, number, number],
+  terrainW: number,
+  terrainD: number
+): Coordinate {
+  const [west, south, east, north] = bounds;
+  const u = clamp(point.x / terrainW + 0.5, 0, 1);
+  const vRow = clamp(point.z / terrainD + 0.5, 0, 1);
+  return {
+    lon: Number((west + u * (east - west)).toFixed(5)),
+    lat: Number((north - vRow * (north - south)).toFixed(5)),
+  };
 }
 
 export default function MarsGlobe({
@@ -103,7 +109,8 @@ export default function MarsGlobe({
   selectedId,
   onSelect,
   routeCoordinates,
-  layerUrl = '/data/layers/combinada.png',
+  manifest,
+  layerUrl = '/data/layers/realidad.png',
   onPick,
   sunAngle = 45,
   sunAutoOrbit = true,
@@ -114,16 +121,25 @@ export default function MarsGlobe({
   selectRef.current = onSelect;
   const pickRef = useRef(onPick);
   pickRef.current = onPick;
+  const boundsRef = useRef(manifest.boundsLonLat);
+  boundsRef.current = manifest.boundsLonLat;
 
-  const sceneRef = useRef<THREE.Scene | null>(null);
-  const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
-  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
-  const marsMeshRef = useRef<THREE.Mesh | null>(null);
-  const marsMaterialRef = useRef<THREE.MeshStandardMaterial | null>(null);
+  const [west, south, east, north] = manifest.boundsLonLat;
+  const midLatRad = ((south + north) / 2) * (Math.PI / 180);
+  const aspectWH = ((east - west) * Math.cos(midLatRad)) / Math.max(1e-5, north - south);
+  const terrainW = 6.7;
+  const terrainD = Number((terrainW / Math.max(0.25, aspectWH)).toFixed(3));
+  const dimsRef = useRef({ terrainW, terrainD });
+  dimsRef.current = { terrainW, terrainD };
+
+  const demGridRef = useRef<DemGrid | null>(null);
+  const [demVersion, setDemVersion] = useState(0);
+
+  const terrainMeshRef = useRef<THREE.Mesh | null>(null);
+  const terrainMatRef = useRef<THREE.MeshStandardMaterial | null>(null);
   const markersGroupRef = useRef<THREE.Group | null>(null);
   const routeGroupRef = useRef<THREE.Group | null>(null);
   const textureLoaderRef = useRef<THREE.TextureLoader | null>(null);
-  const controlsRef = useRef<OrbitControls | null>(null);
   const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
   const sunIndicatorRef = useRef<THREE.Mesh | null>(null);
   const shaderRef = useRef<{ uniforms: Record<string, THREE.IUniform> } | null>(null);
@@ -131,12 +147,28 @@ export default function MarsGlobe({
   const sunAutoOrbitRef = useRef(sunAutoOrbit);
   const shadowOpacityRef = useRef(shadowOpacity);
 
-  // 1. Scene Initialization
+  // Load compact Gusev DEM elevation grid for accurate surface snapping of pins & routes
+  useEffect(() => {
+    let active = true;
+    fetch('/data/gusev_dem_grid.json')
+      .then(r => (r.ok ? r.json() : null))
+      .then((data: DemGrid | null) => {
+        if (active && data?.elevNorm?.length) {
+          demGridRef.current = data;
+          setDemVersion(v => v + 1);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // 1. 3D Topographic Terrain Scene Initialization
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Renderer setup with ACES Filmic Tone Mapping to prevent plastic appearance
     const renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: 'high-performance',
@@ -145,84 +177,49 @@ export default function MarsGlobe({
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.2;
-    renderer.shadowMap.enabled = true;
+    renderer.toneMappingExposure = 1.15;
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x060911);
-    sceneRef.current = scene;
 
-    const camera = new THREE.PerspectiveCamera(
-      45,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      1000
-    );
-    camera.position.set(0, 3.2, 8.8);
-    cameraRef.current = camera;
+    const camera = new THREE.PerspectiveCamera(44, container.clientWidth / container.clientHeight, 0.1, 200);
+    camera.position.set(-4.6, 7.8, 8.6);
 
-    // Controls (planet steady while solar focus orbits/moves)
     const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 0.15, 0);
+    controls.screenSpacePanning = true;
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.minDistance = 4.3;
-    controls.maxDistance = 25.0;
-    controls.autoRotate = false;
-    controlsRef.current = controls;
+    controls.minDistance = 2.0;
+    controls.maxDistance = 24.0;
+    controls.maxPolarAngle = Math.PI * 0.47;
 
-    // Starfield Background
-    const starCount = 2000;
-    const starGeo = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const r = 180 + Math.random() * 200;
-      const phi = Math.acos(Math.random() * 2 - 1);
-      const theta = Math.random() * Math.PI * 2;
-      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      starPositions[i * 3 + 2] = r * Math.cos(phi);
+    // Subtle spatial reference grid beneath terrain slab
+    const gridHelper = new THREE.GridHelper(16, 24, 0x26415f, 0x111d2e);
+    gridHelper.position.y = -0.22;
+    scene.add(gridHelper);
 
-      const br = 0.6 + Math.random() * 0.4;
-      starColors[i * 3] = br;
-      starColors[i * 3 + 1] = br * 0.95;
-      starColors[i * 3 + 2] = br * (0.85 + Math.random() * 0.25);
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-    const starMat = new THREE.PointsMaterial({
-      size: 1.1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-    });
-    scene.add(new THREE.Points(starGeo, starMat));
-
-    // Martian Lighting: Movable high-contrast directional Sunlight + Soft ambient
-    const sunLight = new THREE.DirectionalLight(0xfff5e4, 3.2);
+    const sunLight = new THREE.DirectionalLight(0xfff5e4, 2.8);
     scene.add(sunLight);
     sunLightRef.current = sunLight;
 
-    // Visual orbital Sun focus indicator
     const sunGeo = new THREE.SphereGeometry(0.18, 16, 16);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xffdd99 });
     const sunIndicator = new THREE.Mesh(sunGeo, sunMat);
     scene.add(sunIndicator);
     sunIndicatorRef.current = sunIndicator;
-
     updateSunPosition(sunAngleRef.current, sunLight, sunIndicator);
 
-    const ambientLight = new THREE.AmbientLight(0x241c1c, 0.28);
+    const ambientLight = new THREE.AmbientLight(0x3a3234, 0.55);
     scene.add(ambientLight);
+    const hemiLight = new THREE.HemisphereLight(0xd9e8ff, 0x2a1814, 0.4);
+    scene.add(hemiLight);
 
-    // Texture Loader
     const textureLoader = new THREE.TextureLoader();
     textureLoaderRef.current = textureLoader;
 
-    // Bump & Tangent-Space Normal relief textures (HRSC + MOLA DEM)
     const bumpTexture = textureLoader.load('/data/mars_bump_2k.png');
     bumpTexture.colorSpace = THREE.LinearSRGBColorSpace;
 
@@ -232,34 +229,30 @@ export default function MarsGlobe({
     const displacementTexture = textureLoader.load('/data/mars_elevation_2k.png');
     displacementTexture.colorSpace = THREE.NoColorSpace;
 
-    // NASA HRSC + MOLA Hillshade shadow map texture: imparts real topographic shadows inside craters/chasms
     const hillshadeTexture = textureLoader.load('/data/mars_hillshade.png');
     hillshadeTexture.colorSpace = THREE.LinearSRGBColorSpace;
 
-    // Initial surface / layer texture
     const layerTexture = textureLoader.load(layerUrl);
     layerTexture.colorSpace = THREE.SRGBColorSpace;
     layerTexture.generateMipmaps = true;
     layerTexture.minFilter = THREE.LinearMipmapLinearFilter;
     layerTexture.magFilter = THREE.LinearFilter;
 
-    // High quality MeshStandardMaterial: matte regolith, completely removing "plastilina" look
-    const marsMaterial = new THREE.MeshStandardMaterial({
+    const terrainMat = new THREE.MeshStandardMaterial({
       map: layerTexture,
       normalMap: normalTexture,
-      normalScale: new THREE.Vector2(2.2, 2.2),
+      normalScale: new THREE.Vector2(1.4, 1.4),
       bumpMap: bumpTexture,
-      bumpScale: 0.05,
+      bumpScale: 0.035,
       displacementMap: displacementTexture,
-      displacementScale: 0.08,
-      displacementBias: -0.025,
-      roughness: 0.88,
-      metalness: 0.03,
-      flatShading: false,
+      displacementScale: DISPLACEMENT_SCALE,
+      displacementBias: DISPLACEMENT_BIAS,
+      roughness: 0.9,
+      metalness: 0.02,
+      side: THREE.DoubleSide,
     });
 
-    // Inject hillshade topographic crater shadow blending into shader with centered relief contrast
-    marsMaterial.onBeforeCompile = shader => {
+    terrainMat.onBeforeCompile = shader => {
       shader.uniforms.uHillshade = { value: hillshadeTexture };
       shader.uniforms.uHillshadeStrength = { value: shadowOpacityRef.current };
       shaderRef.current = shader;
@@ -275,44 +268,21 @@ export default function MarsGlobe({
         `
         #include <map_fragment>
         vec4 hill = texture2D(uHillshade, vMapUv);
-        float reliefFactor = clamp((hill.r - 0.78) * 1.85 + 0.92, 0.16, 1.18);
+        float reliefFactor = clamp((hill.r - 0.86) * 1.9 + 0.94, 0.18, 1.15);
         diffuseColor.rgb *= mix(1.0, reliefFactor, uHillshadeStrength);
         `
       );
     };
 
-    const marsGeometry = new THREE.SphereGeometry(RADIUS, 192, 96);
-    const marsMesh = new THREE.Mesh(marsGeometry, marsMaterial);
-    marsMesh.name = 'mars-globe';
-    scene.add(marsMesh);
-    marsMeshRef.current = marsMesh;
-    marsMaterialRef.current = marsMaterial;
+    const terrainGeo = new THREE.PlaneGeometry(terrainW, terrainD, 192, 320);
+    terrainGeo.rotateX(-Math.PI / 2);
 
-    // Mars Atmospheric Glow (thin reddish-orange Fresnel limb)
-    const atmosGeometry = new THREE.SphereGeometry(RADIUS * 1.018, 64, 64);
-    const atmosMaterial = new THREE.ShaderMaterial({
-      vertexShader: `
-        varying vec3 vNormal;
-        void main() {
-          vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }
-      `,
-      fragmentShader: `
-        varying vec3 vNormal;
-        void main() {
-          float intensity = pow(0.68 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.8);
-          gl_FragColor = vec4(0.85, 0.42, 0.25, 1.0) * intensity * 0.85;
-        }
-      `,
-      blending: THREE.AdditiveBlending,
-      side: THREE.BackSide,
-      transparent: true,
-      depthWrite: false,
-    });
-    scene.add(new THREE.Mesh(atmosGeometry, atmosMaterial));
+    const terrainMesh = new THREE.Mesh(terrainGeo, terrainMat);
+    terrainMesh.name = 'gusev-terrain';
+    scene.add(terrainMesh);
+    terrainMeshRef.current = terrainMesh;
+    terrainMatRef.current = terrainMat;
 
-    // Groups for dynamic overlays
     const markersGroup = new THREE.Group();
     scene.add(markersGroup);
     markersGroupRef.current = markersGroup;
@@ -321,33 +291,29 @@ export default function MarsGlobe({
     scene.add(routeGroup);
     routeGroupRef.current = routeGroup;
 
-    // Pointer event handling with drag detection
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     let downPos = { x: 0, y: 0 };
 
     const onPointerDown = (e: MouseEvent) => {
       downPos = { x: e.clientX, y: e.clientY };
-      controls.autoRotate = false; // User engaged with globe
     };
 
     const onPointerUp = (e: MouseEvent) => {
+      if (e.button !== 0) return;
       const dx = Math.abs(e.clientX - downPos.x);
       const dy = Math.abs(e.clientY - downPos.y);
-      if (dx > 5 || dy > 5) return; // Ignore drag operations
+      if (dx > 5 || dy > 5) return;
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
       raycaster.setFromCamera(mouse, camera);
 
-      // Check click on existing markers first
       if (markersGroupRef.current) {
         const markerHits = raycaster.intersectObjects(markersGroupRef.current.children, true);
         if (markerHits.length > 0) {
-          const hit = markerHits[0];
-          let obj: THREE.Object3D | null = hit.object;
+          let obj: THREE.Object3D | null = markerHits[0].object;
           while (obj && !obj.userData?.id) {
             obj = obj.parent;
           }
@@ -358,12 +324,11 @@ export default function MarsGlobe({
         }
       }
 
-      // Check click on Mars Globe to pick coordinates
-      if (marsMeshRef.current) {
-        const globeHits = raycaster.intersectObject(marsMeshRef.current);
-        if (globeHits.length > 0) {
-          const point = globeHits[0].point;
-          const coord = toLatLon(point);
+      if (terrainMeshRef.current) {
+        const terrainHits = raycaster.intersectObject(terrainMeshRef.current);
+        if (terrainHits.length > 0) {
+          const hitPt = terrainHits[0].point;
+          const coord = worldToLatLon(hitPt, boundsRef.current, dimsRef.current.terrainW, dimsRef.current.terrainD);
           pickRef.current(coord);
         }
       }
@@ -373,7 +338,6 @@ export default function MarsGlobe({
     dom.addEventListener('pointerdown', onPointerDown);
     dom.addEventListener('pointerup', onPointerUp);
 
-    // Animation Render Loop
     let animationFrameId: number;
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
@@ -386,11 +350,11 @@ export default function MarsGlobe({
     };
     animate();
 
-    // Responsive Resize Observer
     const resizeObserver = new ResizeObserver(() => {
-      if (!container || !renderer || !camera) return;
+      if (!container) return;
       const width = container.clientWidth;
       const height = container.clientHeight;
+      if (width <= 0 || height <= 0) return;
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       renderer.setSize(width, height);
@@ -404,8 +368,8 @@ export default function MarsGlobe({
       dom.removeEventListener('pointerup', onPointerUp);
       controls.dispose();
       renderer.dispose();
-      marsGeometry.dispose();
-      marsMaterial.dispose();
+      terrainGeo.dispose();
+      terrainMat.dispose();
       sunGeo.dispose();
       sunMat.dispose();
       bumpTexture.dispose();
@@ -413,23 +377,17 @@ export default function MarsGlobe({
       displacementTexture.dispose();
       hillshadeTexture.dispose();
       layerTexture.dispose();
-      starGeo.dispose();
-      starMat.dispose();
-      atmosGeometry.dispose();
-      atmosMaterial.dispose();
+      gridHelper.dispose();
       scene.clear();
-      rendererRef.current = null;
-      sceneRef.current = null;
-      cameraRef.current = null;
-      marsMeshRef.current = null;
-      marsMaterialRef.current = null;
+      terrainMeshRef.current = null;
+      terrainMatRef.current = null;
       sunLightRef.current = null;
       sunIndicatorRef.current = null;
       shaderRef.current = null;
     };
-  }, []);
+  }, [terrainW, terrainD]);
 
-  // 1b. Update Sun Position & Auto-Orbit State
+  // 1b. Sun Position & Auto-Orbit
   useEffect(() => {
     sunAngleRef.current = sunAngle;
     sunAutoOrbitRef.current = sunAutoOrbit;
@@ -438,7 +396,7 @@ export default function MarsGlobe({
     }
   }, [sunAngle, sunAutoOrbit]);
 
-  // 1c. Update Topographical Shadow Mask Strength in Real Time
+  // 1c. Topographical Shadow Strength
   useEffect(() => {
     shadowOpacityRef.current = shadowOpacity;
     if (shaderRef.current?.uniforms?.uHillshadeStrength) {
@@ -446,11 +404,11 @@ export default function MarsGlobe({
     }
   }, [shadowOpacity]);
 
-  // 2. Real-Time Layer Texture Swapping (zero-lag on checkbox toggle)
+  // 2. Real-Time Layer Texture Swapping
   useEffect(() => {
-    if (!marsMaterialRef.current || !textureLoaderRef.current) return;
+    if (!terrainMatRef.current || !textureLoaderRef.current) return;
     const loader = textureLoaderRef.current;
-    const material = marsMaterialRef.current;
+    const material = terrainMatRef.current;
 
     loader.load(
       layerUrl,
@@ -469,17 +427,16 @@ export default function MarsGlobe({
       },
       undefined,
       err => {
-        console.warn('Error loading dynamic texture:', layerUrl, err);
+        console.warn('Error loading 3D texture:', layerUrl, err);
       }
     );
   }, [layerUrl]);
 
-  // 3. Real-Time Interactive Markers (Origin & Destination)
+  // 3. Real-Time 3D Markers snapped onto DEM elevation
   useEffect(() => {
-    if (!markersGroupRef.current) return;
     const group = markersGroupRef.current;
+    if (!group) return;
 
-    // Clear old markers
     while (group.children.length > 0) {
       const child = group.children[0] as THREE.Mesh;
       if (child.geometry) child.geometry.dispose();
@@ -491,46 +448,58 @@ export default function MarsGlobe({
     points.forEach(p => {
       const isSelected = p.id === selectedId;
       const isLanding = p.kind === 'aterrizaje';
-      const color = isLanding ? 0x76d7c4 : 0xffc078;
-      const radius = isLanding ? 0.11 : 0.09;
+      const isWaypoint = p.kind === 'parada';
+      const color = isLanding ? 0x76d7c4 : isWaypoint ? 0x65a7eb : 0xffc078;
+      const basePos = lonLatToWorld(
+        p.lon,
+        p.lat,
+        manifest.boundsLonLat,
+        terrainW,
+        terrainD,
+        demGridRef.current,
+        0
+      );
 
-      // Base marker sphere
-      const geo = new THREE.SphereGeometry(radius * (isSelected ? 1.4 : 1.0), 16, 16);
-      const mat = new THREE.MeshStandardMaterial({
+      // Vertical beacon stem + sphere pin above terrain surface
+      const stemGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 8);
+      const stemMat = new THREE.MeshBasicMaterial({ color });
+      const stem = new THREE.Mesh(stemGeo, stemMat);
+      stem.position.set(basePos.x, basePos.y + 0.12, basePos.z);
+      stem.userData = { id: p.id };
+      group.add(stem);
+
+      const sphereGeo = new THREE.SphereGeometry(isSelected ? 0.11 : 0.085, 16, 16);
+      const sphereMat = new THREE.MeshStandardMaterial({
         color,
         emissive: color,
-        emissiveIntensity: isSelected ? 0.9 : 0.5,
-        roughness: 0.2,
-        metalness: 0.1,
+        emissiveIntensity: isSelected ? 0.9 : 0.55,
+        roughness: 0.25,
       });
+      const pin = new THREE.Mesh(sphereGeo, sphereMat);
+      pin.position.set(basePos.x, basePos.y + 0.26, basePos.z);
+      pin.userData = { id: p.id };
+      group.add(pin);
 
-      const mesh = new THREE.Mesh(geo, mat);
-      const pos = toPosition(p.lat, p.lon, RADIUS + 0.06);
-      mesh.position.copy(pos);
-      mesh.userData = { id: p.id };
-      group.add(mesh);
-
-      // Outer ring for selected marker
       if (isSelected) {
-        const ringGeo = new THREE.RingGeometry(radius * 1.6, radius * 2.1, 24);
+        const ringGeo = new THREE.RingGeometry(0.14, 0.19, 24);
+        ringGeo.rotateX(-Math.PI / 2);
         const ringMat = new THREE.MeshBasicMaterial({
           color: 0xffffff,
           side: THREE.DoubleSide,
           transparent: true,
-          opacity: 0.8,
+          opacity: 0.85,
         });
         const ring = new THREE.Mesh(ringGeo, ringMat);
-        ring.position.copy(toPosition(p.lat, p.lon, RADIUS + 0.08));
-        ring.lookAt(new THREE.Vector3(0, 0, 0));
+        ring.position.set(basePos.x, basePos.y + 0.025, basePos.z);
         group.add(ring);
       }
     });
-  }, [points, selectedId]);
+  }, [points, selectedId, manifest.boundsLonLat, terrainW, terrainD, demVersion]);
 
-  // 4. Real-Time Geodesic Route Mesh Update
+  // 4. Real-Time 3D Route Tube conformed to Gusev DEM relief
   useEffect(() => {
-    if (!routeGroupRef.current) return;
     const group = routeGroupRef.current;
+    if (!group) return;
 
     while (group.children.length > 0) {
       const child = group.children[0] as THREE.Mesh;
@@ -542,31 +511,31 @@ export default function MarsGlobe({
 
     if (!routeCoordinates || routeCoordinates.length < 2) return;
 
-    // Collect slerp path coordinates along great circle segments
-    const fullPath: THREE.Vector3[] = [];
-    for (let i = 0; i < routeCoordinates.length - 1; i++) {
-      const [lonA, latA] = routeCoordinates[i];
-      const [lonB, latB] = routeCoordinates[i + 1];
-      const seg = interpolateGreatCircle(toPosition(latA, lonA), toPosition(latB, lonB), 10, 0.04);
-      fullPath.push(...(i === 0 ? seg : seg.slice(1)));
+    const stride = Math.max(1, Math.floor(routeCoordinates.length / 260));
+    const sampled: THREE.Vector3[] = [];
+    for (let i = 0; i < routeCoordinates.length; i += stride) {
+      const [lon, lat] = routeCoordinates[i];
+      sampled.push(lonLatToWorld(lon, lat, manifest.boundsLonLat, terrainW, terrainD, demGridRef.current, 0.045));
     }
+    const [lastLon, lastLat] = routeCoordinates[routeCoordinates.length - 1];
+    const lastVec = lonLatToWorld(lastLon, lastLat, manifest.boundsLonLat, terrainW, terrainD, demGridRef.current, 0.045);
+    if (sampled[sampled.length - 1].distanceTo(lastVec) > 1e-4) {
+      sampled.push(lastVec);
+    }
+    if (sampled.length < 2) return;
 
-    const routeGeo = new THREE.BufferGeometry().setFromPoints(fullPath);
-    const routeMat = new THREE.LineBasicMaterial({
-      color: 0xffd27c,
-      linewidth: 3,
-    });
-
-    const routeLine = new THREE.Line(routeGeo, routeMat);
-    group.add(routeLine);
-  }, [routeCoordinates]);
+    const curve = new THREE.CatmullRomCurve3(sampled);
+    const tubeGeo = new THREE.TubeGeometry(curve, Math.min(320, sampled.length * 2), 0.028, 6, false);
+    const tubeMat = new THREE.MeshBasicMaterial({ color: 0xffd27c });
+    group.add(new THREE.Mesh(tubeGeo, tubeMat));
+  }, [routeCoordinates, manifest.boundsLonLat, terrainW, terrainD, demVersion]);
 
   return (
     <div
       ref={containerRef}
       className="mars-canvas"
       style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}
-      aria-label="Globo marciano tridimensional interactivo con relieve y sombras MOLA en Three.js"
+      aria-label="Relieve topográfico 3D interactivo de Spirit / Cráter Gusev en Three.js"
     />
   );
 }

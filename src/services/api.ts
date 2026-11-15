@@ -1,6 +1,6 @@
 import type { PointOfInterest, RouteResult, MissionType, Coordinate } from '../types/mission';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8081';
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

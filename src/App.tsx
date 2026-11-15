@@ -16,43 +16,65 @@ interface LayerConfig {
 interface RoutePreset {
   id: string;
   label: string;
-  points: [Coordinate, Coordinate];
+  points: Coordinate[];
 }
 
 const ROUTE_PRESETS: RoutePreset[] = [
   {
-    id: 'jezero',
-    label: 'Cráter Jezero (Corto)',
-    points: [{ lon: 77.45, lat: 18.45 }, { lon: 77.35, lat: 18.5 }],
+    id: 'corredor',
+    label: 'Corredor Gusev Norte → Sur',
+    points: [{ lon: 175.51095, lat: -14.54415 }, { lon: 175.50893, lat: -14.64257 }],
   },
   {
-    id: 'valles',
-    label: 'Valles Marineris',
-    points: [{ lon: -75.0, lat: -11.5 }, { lon: -58.0, lat: -13.8 }],
+    id: 'expedicion',
+    label: 'Expedición Gusev (3 pts)',
+    points: [
+      { lon: 175.51095, lat: -14.54415 },
+      { lon: 175.508, lat: -14.585 },
+      { lon: 175.50893, lat: -14.64257 },
+    ],
   },
   {
-    id: 'tharsis',
-    label: 'Tharsis → Olimpo',
-    points: [{ lon: -112.0, lat: 2.0 }, { lon: -131.0, lat: 18.0 }],
+    id: 'llanura',
+    label: 'Llanura Norte → Centro',
+    points: [{ lon: 175.506, lat: -14.53 }, { lon: 175.508, lat: -14.585 }],
+  },
+  {
+    id: 'hills',
+    label: 'Columbia Hills → Sur',
+    points: [{ lon: 175.508, lat: -14.585 }, { lon: 175.51, lat: -14.64 }],
   },
 ];
+
+function pointLabel(i: number, total: number): string {
+  const letter = String.fromCharCode(65 + i);
+  if (i === 0) return `${letter} · Origen`;
+  if (i === total - 1) return `${letter} · Destino`;
+  return `${letter} · Parada ${i}`;
+}
+
+function pointDotClass(i: number, total: number): string {
+  if (i === 0) return 'mint';
+  if (i === total - 1) return 'amber';
+  return 'sky';
+}
 
 const LAYER_CONFIGS: LayerConfig[] = [
   {
     id: 'realidad',
-    label: 'Superficie Real (NASA HD)',
+    label: 'Superficie Real (HiRISE 1 m)',
     shortLabel: 'Superficie Real',
-    badge: 'Viking + 3D',
+    badge: 'Orto + DEM',
     isBaseHazard: false,
-    desc: 'Mosaico global NASA Viking MDIM 2.1 (232 m/px) con sombras orográficas HRSC + MOLA en tiempo real.',
+    desc: 'Ortoimagen calibrada HiRISE PSP_001513_1655 (1,01 m/px) sobre Cráter Gusev y Columbia Hills con relieve sombreado.',
   },
   {
     id: 'sombras',
-    label: 'Mapa de Sombras (MOLA)',
+    label: 'Mapa de Sombras (DTM 1 m)',
     shortLabel: 'Mapa de Sombras',
     badge: 'Hillshade',
     isBaseHazard: false,
-    desc: 'Sombras orográficas HRSC + MOLA (200 m/px) para inspeccionar cráteres, cañones y escarpes sin color añadido.',
+    desc: 'Relieve sombreado del DTM estéreo oficial HiRISE DTEEC_001513_1655_001777_1650 (1,01 m/px) de Spirit.',
   },
   {
     id: 'combinada',
@@ -60,39 +82,39 @@ const LAYER_CONFIGS: LayerConfig[] = [
     shortLabel: 'Combinada',
     badge: 'Dinámica',
     isBaseHazard: false,
-    desc: 'Fusión en tiempo real de los filtros activos: cualquier nivel 4 veta la celda; de lo contrario toma el máximo.',
+    desc: 'Fusión en tiempo real de las 4 capas calibradas de Spirit: cualquier nivel 4 veta la celda; sino toma el máximo.',
   },
   {
     id: 'pendientes_mola',
-    label: 'Pendientes (DEM)',
-    shortLabel: 'Pendientes DEM',
-    badge: '0°–35°+',
+    label: 'Pendientes (HiRISE 1 m)',
+    shortLabel: 'Pendientes DTM',
+    badge: '1.01 m/px',
     isBaseHazard: false,
-    desc: 'Gradiente continuo de inclinación topográfica derivado del altímetro láser orbital MOLA.',
+    desc: 'Viabilidad por inclinación topográfica del DTM estéreo de Spirit (<5°, 5-10°, 10-20°, >20°).',
   },
   {
     id: 'radiacion',
-    label: 'Radiación Cósmica',
-    shortLabel: 'Radiación',
-    badge: 'Atmósfera',
+    label: 'Temperatura (Mini-TES)',
+    shortLabel: 'Temperatura',
+    badge: 'Mini-TES',
     isBaseHazard: true,
-    desc: 'Dosis anual estimada según columna de presión atmosférica (cuencas protegidas vs cumbres expuestas).',
+    desc: 'Temperatura de brillo derivada (Mini-TES Spirit) modelada con insolación topográfica y albedo a 1 m/px.',
   },
   {
     id: 'geologia',
-    label: 'Geología y Regolito',
+    label: 'Geología y Óxidos (APXS)',
     shortLabel: 'Geología',
-    badge: '44 u.',
+    badge: 'APXS SiO2',
     isBaseHazard: true,
-    desc: 'Clasificación de dureza y rugosidad de 44 unidades geológicas del mapa global USGS/NASA.',
+    desc: 'Unidades basálticas vs afloramientos ricos en sílice/rugosidad calibrados con APXS de Spirit (220 muestras).',
   },
   {
     id: 'accidentes',
-    label: 'Accidentes / Morfología',
-    shortLabel: 'Accidentes',
-    badge: 'Cráteres',
+    label: 'Mineralogía / Morfología',
+    shortLabel: 'Mineralogía',
+    badge: 'Mössbauer',
     isBaseHazard: true,
-    desc: 'Bordes de cráter, calderas, fallas tectónicas, rilles, escarpes y fosas intransitables.',
+    desc: 'Trampas de sulfatos férricos sueltos (Fe3+/FeT Mössbauer Spirit), crestas, depresiones y bordes de cráter.',
   },
   {
     id: 'pendientes',
@@ -100,7 +122,7 @@ const LAYER_CONFIGS: LayerConfig[] = [
     shortLabel: 'Pendientes',
     badge: '1–4',
     isBaseHazard: true,
-    desc: 'Clasificación discreta: <5° factible (1), 5-10° moderada (2), 10-20° difícil (3), >20° inviable (4).',
+    desc: 'Clasificación discreta a 1,01 m/px: <5° factible (1), 5-10° moderada (2), 10-20° difícil (3), >20° inviable (4).',
   },
 ];
 
@@ -125,14 +147,14 @@ export default function App() {
   const [sunAutoOrbit, setSunAutoOrbit] = useState(true);
   const [shadowOpacity, setShadowOpacity] = useState(0.9);
   const [mapError, setMapError] = useState('');
-  const [view, setView] = useState<'2d' | '3d'>('3d');
+  const [view, setView] = useState<'2d' | '3d'>('2d');
   const [apiStatus, setApiStatus] = useState('Comprobando API…');
   const [apiReady, setApiReady] = useState(false);
   const [mission, setMission] = useState<MissionType>('robotica');
   const [active, setActive] = useState(0);
   const [points, setPoints] = useState<Coordinate[]>([
-    { lon: 77.45, lat: 18.45 },
-    { lon: 77.35, lat: 18.5 },
+    { lon: 175.51095, lat: -14.54415 },
+    { lon: 175.50893, lat: -14.64257 },
   ]);
   const [result, setResult] = useState<RouteResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -183,7 +205,7 @@ export default function App() {
 
   const pick = (p: Coordinate, targetIndex?: number) => {
     if (loading) return;
-    const rounded = { lon: Number(p.lon.toFixed(3)), lat: Number(p.lat.toFixed(3)) };
+    const rounded = { lon: Number(p.lon.toFixed(5)), lat: Number(p.lat.toFixed(5)) };
     setPoints(old => old.map((v, i) => (i === (targetIndex ?? active) ? rounded : v)));
     clear();
   };
@@ -196,6 +218,29 @@ export default function App() {
   const applyPreset = (preset: RoutePreset) => {
     if (loading) return;
     setPoints(preset.points);
+    setActive(0);
+    clear();
+  };
+
+  const addPoint = () => {
+    if (loading || points.length >= 8) return;
+    const prev = points[points.length - 2];
+    const last = points[points.length - 1];
+    const mid = {
+      lon: Number(((prev.lon + last.lon) / 2).toFixed(5)),
+      lat: Number(((prev.lat + last.lat) / 2).toFixed(5)),
+    };
+    const insertIdx = points.length - 1;
+    setPoints(old => [...old.slice(0, -1), mid, old[old.length - 1]]);
+    setActive(insertIdx);
+    clear();
+  };
+
+  const removePoint = (index: number) => {
+    if (loading || points.length <= 2) return;
+    const nextLen = points.length - 1;
+    setPoints(old => old.filter((_, i) => i !== index));
+    setActive(prev => Math.min(prev > index ? prev - 1 : prev, nextLen - 1));
     clear();
   };
 
@@ -247,17 +292,17 @@ export default function App() {
   const markers = points.map((p, i) => ({
     ...p,
     id: String(i),
-    name: i === 0 ? 'Origen (A)' : 'Destino (B)',
-    kind: i === 0 ? ('aterrizaje' as const) : ('ciencia' as const),
+    name: pointLabel(i, points.length),
+    kind: i === 0 ? ('aterrizaje' as const) : i === points.length - 1 ? ('ciencia' as const) : ('parada' as const),
     region: 'Marte',
     detail: '',
   }));
 
   const isPresetActive = (preset: RoutePreset) =>
-    Math.abs(points[0].lon - preset.points[0].lon) < 0.01 &&
-    Math.abs(points[0].lat - preset.points[0].lat) < 0.01 &&
-    Math.abs(points[1].lon - preset.points[1].lon) < 0.01 &&
-    Math.abs(points[1].lat - preset.points[1].lat) < 0.01;
+    points.length === preset.points.length &&
+    preset.points.every(
+      (pt, i) => Math.abs(points[i].lon - pt.lon) < 0.01 && Math.abs(points[i].lat - pt.lat) < 0.01
+    );
 
   return (
     <div className="app">
@@ -265,15 +310,15 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">◉</span>
           <div>
-            <strong>OLYMPUS</strong>
-            <small>EXPLORACIÓN Y RUTAS MARCIANAS</small>
+            <strong>OLYMPUS · SPIRIT</strong>
+            <small>CRÁTER GUSEV · DATAPEQUEÑA (1,01 M/PX)</small>
           </div>
         </div>
 
         <div className="topbar-center">
           <div className="segmented segmented-compact" role="tablist" aria-label="Modo de visualización">
             <button className={view === '3d' ? 'active' : ''} onClick={() => setView('3d')}>
-              Globo 3D
+              Relieve 3D
             </button>
             <button className={view === '2d' ? 'active' : ''} onClick={() => setView('2d')}>
               Mapa 2D
@@ -297,7 +342,7 @@ export default function App() {
         <aside className="panel left-panel">
           <div className="section-header-row">
             <span className="section-heading">CAPAS BASE</span>
-            <span className="meta-tag">{manifest ? `${manifest.resolutionM.toFixed(0)} m/px` : '463 m/px'}</span>
+            <span className="meta-tag">{manifest ? `${manifest.resolutionM.toFixed(2)} m/px` : '1.01 m/px'}</span>
           </div>
 
           <div className="base-layer-grid">
@@ -436,7 +481,7 @@ export default function App() {
             </span>
             <span className="hud-hint">
               {view === '3d' ? 'Arrastra para girar · Rueda para zoom · ' : 'Zoom y clic para marcar · '}
-              Colocando <strong>{active === 0 ? 'A · Origen' : 'B · Destino'}</strong>
+              Colocando <strong>{pointLabel(active, points.length)}</strong>
             </span>
           </div>
 
@@ -495,7 +540,8 @@ export default function App() {
             </div>
             <div className="legend-inline">
               <span><i className="legend-dot mint" /> A · Origen</span>
-              <span><i className="legend-dot amber" /> B · Destino</span>
+              {points.length > 2 && <span><i className="legend-dot sky" /> Paradas ({points.length - 2})</span>}
+              <span><i className="legend-dot amber" /> {String.fromCharCode(65 + points.length - 1)} · Destino</span>
               <span><i className="legend-line" /> Ruta óptima</span>
             </div>
           </div>
@@ -510,43 +556,69 @@ export default function App() {
               disabled={loading}
               onClick={() => { setMission('robotica'); clear(); }}
             >
-              Robótica
+              Máquina (Niv. 1–3)
             </button>
             <button
               className={mission === 'humana' ? 'active' : ''}
               disabled={loading}
               onClick={() => { setMission('humana'); clear(); }}
             >
-              Humana
+              Humano (Niv. 1–2)
             </button>
           </div>
           <p className="note">
-            El perfil humano penaliza los niveles 2 y 3 (costes 1/5/20 vs 1/3/9). Nivel 4 siempre excluido.
+            {mission === 'humana'
+              ? 'Perfil Humano: tolera únicamente hasta nivel 2 (costes 1 y 5). Los niveles 3 y 4 quedan estrictamente bloqueados.'
+              : 'Perfil Máquina: soporta hasta nivel 3 (costes 1, 3 y 9). Solo el nivel 4 (veto crítico) queda excluido.'}
           </p>
 
-          <div className="section-heading section-gap">PUNTOS DE RUTA</div>
+          <div className="section-header-row section-gap">
+            <span className="section-heading">PUNTOS DE RUTA ({points.length}/8)</span>
+            <button
+              type="button"
+              className="add-point-btn"
+              disabled={loading || points.length >= 8}
+              onClick={addPoint}
+            >
+              + Añadir punto
+            </button>
+          </div>
           <fieldset disabled={loading}>
             {points.map((point, i) => {
               const isSelected = active === i;
+              const label = pointLabel(i, points.length);
               return (
                 <div className={`coord-card ${isSelected ? 'selected' : ''}`} key={i}>
-                  <button
-                    className={`coord-select-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => setActive(i)}
-                  >
-                    <span>
-                      <i className={`legend-dot ${i === 0 ? 'mint' : 'amber'}`} />
-                      {i === 0 ? 'A · Origen' : 'B · Destino'}
-                    </span>
-                    <small>{isSelected ? 'Clic en mapa activo' : 'Seleccionar'}</small>
-                  </button>
+                  <div className="coord-card-header">
+                    <button
+                      className={`coord-select-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => setActive(i)}
+                    >
+                      <span>
+                        <i className={`legend-dot ${pointDotClass(i, points.length)}`} />
+                        {label}
+                      </span>
+                      <small>{isSelected ? 'Clic en mapa activo' : 'Seleccionar'}</small>
+                    </button>
+                    {points.length > 2 && (
+                      <button
+                        type="button"
+                        className="coord-remove-btn"
+                        onClick={() => removePoint(i)}
+                        title={`Eliminar ${label}`}
+                        aria-label={`Eliminar ${label}`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                   <div className="coord-grid">
                     <label>
                       Lon (°E)
                       <input
-                        aria-label={`Longitud ${i === 0 ? 'origen' : 'destino'}`}
+                        aria-label={`Longitud ${label}`}
                         type="number"
-                        step="0.001"
+                        step="0.0001"
                         min="-180"
                         max="180"
                         value={point.lon}
@@ -556,9 +628,9 @@ export default function App() {
                     <label>
                       Lat (°N)
                       <input
-                        aria-label={`Latitud ${i === 0 ? 'origen' : 'destino'}`}
+                        aria-label={`Latitud ${label}`}
                         type="number"
-                        step="0.001"
+                        step="0.0001"
                         min="-89.999"
                         max="89.999"
                         value={point.lat}
@@ -638,7 +710,7 @@ export default function App() {
               </div>
             ) : (
               <p className="note">
-                Selecciona un preset o haz clic sobre Marte para definir Origen y Destino. Dijkstra adaptativo soporta rutas continentales.
+                Selecciona un preset, añade paradas o haz clic sobre Gusev para definir la ruta multipunto. Dijkstra adaptativo soporta hasta 8 puntos.
               </p>
             )}
 
