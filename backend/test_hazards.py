@@ -67,15 +67,32 @@ def test_compiled_search_matches_reference_cost_and_safe_edges(seed,mission):
     old,old_cost=astar(levels,(0,0),(14,16),GRID,3396190,mission)
     new,new_cost=shortest_route(levels,(0,0),(14,16),GRID,3396190,mission)
     assert (old is None)==(new is None)
+    allowed = (1, 2) if mission == 'humana' else (1, 2, 3)
     if new:
         assert new_cost==pytest.approx(old_cost,rel=1e-8)
         for (r,c),(nr,nc) in zip(new,new[1:]):
-            assert levels[nr,nc] in (1,2,3)
+            assert levels[nr,nc] in allowed
             if r!=nr and c!=nc:
-                assert levels[r,nc] in (1,2,3) and levels[nr,c] in (1,2,3)
+                assert levels[r,nc] in allowed and levels[nr,c] in allowed
 
 
 def test_compiled_blocked_and_same_cell():
     with pytest.raises(RouteError,match='Destino'):
         shortest_route(np.array([[1,4]]),(0,0),(0,1),GRID,3396190)
     assert shortest_route(np.ones((1,1),dtype=np.uint8),(0,0),(0,0),GRID,3396190)==([(0,0)],0.)
+
+
+def test_human_profile_max_level_2_vs_machine_level_3():
+    levels = np.array([
+        [1, 4, 1],
+        [1, 3, 1],
+        [1, 4, 1],
+    ], dtype=np.uint8)
+    path_robot, _ = shortest_route(levels, (1, 0), (1, 2), GRID, 3396190, "robotica")
+    assert path_robot == [(1, 0), (1, 1), (1, 2)]
+    path_human, _ = shortest_route(levels, (1, 0), (1, 2), GRID, 3396190, "humana")
+    assert path_human is None
+    astar_human, _ = astar(levels, (1, 0), (1, 2), GRID, 3396190, "humana")
+    assert astar_human is None
+    with pytest.raises(RouteError, match="máximo 2"):
+        shortest_route(np.array([[3, 1]], dtype=np.uint8), (0, 0), (0, 1), GRID, 3396190, "humana")

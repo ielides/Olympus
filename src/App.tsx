@@ -16,7 +16,7 @@ interface LayerConfig {
 interface RoutePreset {
   id: string;
   label: string;
-  points: [Coordinate, Coordinate];
+  points: Coordinate[];
 }
 
 const ROUTE_PRESETS: RoutePreset[] = [
@@ -24,6 +24,15 @@ const ROUTE_PRESETS: RoutePreset[] = [
     id: 'jezero',
     label: 'Cráter Jezero (Corto)',
     points: [{ lon: 77.45, lat: 18.45 }, { lon: 77.35, lat: 18.5 }],
+  },
+  {
+    id: 'jezero-multi',
+    label: 'Jezero Multipunto (3 pts)',
+    points: [
+      { lon: 76.834, lat: 19.598 },
+      { lon: 77.756, lat: 19.457 },
+      { lon: 76.974, lat: 19.176 },
+    ],
   },
   {
     id: 'valles',
@@ -36,6 +45,19 @@ const ROUTE_PRESETS: RoutePreset[] = [
     points: [{ lon: -112.0, lat: 2.0 }, { lon: -131.0, lat: 18.0 }],
   },
 ];
+
+function pointLabel(i: number, total: number): string {
+  const letter = String.fromCharCode(65 + i);
+  if (i === 0) return `${letter} · Origen`;
+  if (i === total - 1) return `${letter} · Destino`;
+  return `${letter} · Parada ${i}`;
+}
+
+function pointDotClass(i: number, total: number): string {
+  if (i === 0) return 'mint';
+  if (i === total - 1) return 'amber';
+  return 'sky';
+}
 
 const LAYER_CONFIGS: LayerConfig[] = [
   {
@@ -196,6 +218,29 @@ export default function App() {
   const applyPreset = (preset: RoutePreset) => {
     if (loading) return;
     setPoints(preset.points);
+    setActive(0);
+    clear();
+  };
+
+  const addPoint = () => {
+    if (loading || points.length >= 8) return;
+    const prev = points[points.length - 2];
+    const last = points[points.length - 1];
+    const mid = {
+      lon: Number(((prev.lon + last.lon) / 2).toFixed(3)),
+      lat: Number(((prev.lat + last.lat) / 2).toFixed(3)),
+    };
+    const insertIdx = points.length - 1;
+    setPoints(old => [...old.slice(0, -1), mid, old[old.length - 1]]);
+    setActive(insertIdx);
+    clear();
+  };
+
+  const removePoint = (index: number) => {
+    if (loading || points.length <= 2) return;
+    const nextLen = points.length - 1;
+    setPoints(old => old.filter((_, i) => i !== index));
+    setActive(prev => Math.min(prev > index ? prev - 1 : prev, nextLen - 1));
     clear();
   };
 
@@ -247,17 +292,17 @@ export default function App() {
   const markers = points.map((p, i) => ({
     ...p,
     id: String(i),
-    name: i === 0 ? 'Origen (A)' : 'Destino (B)',
-    kind: i === 0 ? ('aterrizaje' as const) : ('ciencia' as const),
+    name: pointLabel(i, points.length),
+    kind: i === 0 ? ('aterrizaje' as const) : i === points.length - 1 ? ('ciencia' as const) : ('parada' as const),
     region: 'Marte',
     detail: '',
   }));
 
   const isPresetActive = (preset: RoutePreset) =>
-    Math.abs(points[0].lon - preset.points[0].lon) < 0.01 &&
-    Math.abs(points[0].lat - preset.points[0].lat) < 0.01 &&
-    Math.abs(points[1].lon - preset.points[1].lon) < 0.01 &&
-    Math.abs(points[1].lat - preset.points[1].lat) < 0.01;
+    points.length === preset.points.length &&
+    preset.points.every(
+      (pt, i) => Math.abs(points[i].lon - pt.lon) < 0.01 && Math.abs(points[i].lat - pt.lat) < 0.01
+    );
 
   return (
     <div className="app">
@@ -436,7 +481,7 @@ export default function App() {
             </span>
             <span className="hud-hint">
               {view === '3d' ? 'Arrastra para girar · Rueda para zoom · ' : 'Zoom y clic para marcar · '}
-              Colocando <strong>{active === 0 ? 'A · Origen' : 'B · Destino'}</strong>
+              Colocando <strong>{pointLabel(active, points.length)}</strong>
             </span>
           </div>
 
@@ -495,7 +540,8 @@ export default function App() {
             </div>
             <div className="legend-inline">
               <span><i className="legend-dot mint" /> A · Origen</span>
-              <span><i className="legend-dot amber" /> B · Destino</span>
+              {points.length > 2 && <span><i className="legend-dot sky" /> Paradas ({points.length - 2})</span>}
+              <span><i className="legend-dot amber" /> {String.fromCharCode(65 + points.length - 1)} · Destino</span>
               <span><i className="legend-line" /> Ruta óptima</span>
             </div>
           </div>
@@ -510,41 +556,67 @@ export default function App() {
               disabled={loading}
               onClick={() => { setMission('robotica'); clear(); }}
             >
-              Robótica
+              Máquina (Niv. 1–3)
             </button>
             <button
               className={mission === 'humana' ? 'active' : ''}
               disabled={loading}
               onClick={() => { setMission('humana'); clear(); }}
             >
-              Humana
+              Humano (Niv. 1–2)
             </button>
           </div>
           <p className="note">
-            El perfil humano penaliza los niveles 2 y 3 (costes 1/5/20 vs 1/3/9). Nivel 4 siempre excluido.
+            {mission === 'humana'
+              ? 'Perfil Humano: tolera únicamente hasta nivel 2 (costes 1 y 5). Los niveles 3 y 4 quedan estrictamente bloqueados.'
+              : 'Perfil Máquina: soporta hasta nivel 3 (costes 1, 3 y 9). Solo el nivel 4 (veto crítico) queda excluido.'}
           </p>
 
-          <div className="section-heading section-gap">PUNTOS DE RUTA</div>
+          <div className="section-header-row section-gap">
+            <span className="section-heading">PUNTOS DE RUTA ({points.length}/8)</span>
+            <button
+              type="button"
+              className="add-point-btn"
+              disabled={loading || points.length >= 8}
+              onClick={addPoint}
+            >
+              + Añadir punto
+            </button>
+          </div>
           <fieldset disabled={loading}>
             {points.map((point, i) => {
               const isSelected = active === i;
+              const label = pointLabel(i, points.length);
               return (
                 <div className={`coord-card ${isSelected ? 'selected' : ''}`} key={i}>
-                  <button
-                    className={`coord-select-btn ${isSelected ? 'active' : ''}`}
-                    onClick={() => setActive(i)}
-                  >
-                    <span>
-                      <i className={`legend-dot ${i === 0 ? 'mint' : 'amber'}`} />
-                      {i === 0 ? 'A · Origen' : 'B · Destino'}
-                    </span>
-                    <small>{isSelected ? 'Clic en mapa activo' : 'Seleccionar'}</small>
-                  </button>
+                  <div className="coord-card-header">
+                    <button
+                      className={`coord-select-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => setActive(i)}
+                    >
+                      <span>
+                        <i className={`legend-dot ${pointDotClass(i, points.length)}`} />
+                        {label}
+                      </span>
+                      <small>{isSelected ? 'Clic en mapa activo' : 'Seleccionar'}</small>
+                    </button>
+                    {points.length > 2 && (
+                      <button
+                        type="button"
+                        className="coord-remove-btn"
+                        onClick={() => removePoint(i)}
+                        title={`Eliminar ${label}`}
+                        aria-label={`Eliminar ${label}`}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
                   <div className="coord-grid">
                     <label>
                       Lon (°E)
                       <input
-                        aria-label={`Longitud ${i === 0 ? 'origen' : 'destino'}`}
+                        aria-label={`Longitud ${label}`}
                         type="number"
                         step="0.001"
                         min="-180"
@@ -556,7 +628,7 @@ export default function App() {
                     <label>
                       Lat (°N)
                       <input
-                        aria-label={`Latitud ${i === 0 ? 'origen' : 'destino'}`}
+                        aria-label={`Latitud ${label}`}
                         type="number"
                         step="0.001"
                         min="-89.999"
@@ -638,7 +710,7 @@ export default function App() {
               </div>
             ) : (
               <p className="note">
-                Selecciona un preset o haz clic sobre Marte para definir Origen y Destino. Dijkstra adaptativo soporta rutas continentales.
+                Selecciona un preset, añade paradas o haz clic sobre Marte para definir la ruta multipunto. Dijkstra adaptativo soporta rutas continentales.
               </p>
             )}
 

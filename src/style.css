@@ -642,6 +642,10 @@ button:disabled {
   background: var(--accent-teal);
 }
 
+.legend-dot.sky {
+  background: var(--accent-blue);
+}
+
 .legend-dot.amber {
   background: var(--accent-amber);
 }
@@ -774,17 +778,57 @@ fieldset {
   border-color: var(--accent-teal);
 }
 
+.coord-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .coord-select-btn {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: none;
   border: 0;
-  padding: 0 0 8px;
+  padding: 0;
   color: var(--text-primary);
   font-size: 12px;
   font-weight: 700;
+}
+
+.add-point-btn {
+  background: #14283e;
+  border: 1px solid #2b496b;
+  color: var(--accent-teal);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+
+.add-point-btn:hover:not(:disabled) {
+  background: #1b3654;
+}
+
+.coord-remove-btn {
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+  border-radius: 5px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  flex-shrink: 0;
+}
+
+.coord-remove-btn:hover:not(:disabled) {
+  border-color: var(--accent-danger);
+  color: #ffdce3;
+  background: #331922;
 }
 
 .coord-select-btn span {

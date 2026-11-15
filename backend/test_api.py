@@ -64,3 +64,27 @@ def test_empty_active_layers():
     assert response.status_code == 422
     assert 'al menos una capa' in response.json()['detail']
 
+
+def test_multipoint_and_human_level_limit():
+    response = client.post('/routes/coordinates', json={
+        'points': [
+            {'lon': 76.834, 'lat': 19.598},
+            {'lon': 77.756, 'lat': 19.457},
+            {'lon': 76.974, 'lat': 19.176},
+        ],
+        'mission': 'humana',
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data['distanceKm'] > 0
+    assert data['riskFactors'] is not None
+    assert data['riskFactors']['nivel3Pct'] == 0
+    assert '2 tramos' in data['notes']
+
+    rejected = client.post('/routes/coordinates', json={
+        'points': [{'lon': 77.45, 'lat': 18.45}, {'lon': 77.35, 'lat': 18.5}],
+        'mission': 'humana',
+    })
+    assert rejected.status_code == 422
+    assert 'máximo 2' in rejected.json()['detail']
+

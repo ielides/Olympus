@@ -264,7 +264,7 @@ export default function MarsMap({
               )
             }
           >
-            {route && route.length >= 2 ? 'Enfocar ruta' : 'Enfocar A–B'}
+            {route && route.length >= 2 ? 'Enfocar ruta' : points.length > 2 ? 'Enfocar puntos' : 'Enfocar A–B'}
           </button>
         </div>
 
@@ -388,13 +388,13 @@ export default function MarsMap({
             </g>
           )}
 
-          {/* Interactive draggable markers A & B */}
+          {/* Interactive draggable markers A..H */}
           {points.map((p, i) => {
             const cx = p.lon + 180;
             const cy = 90 - p.lat;
             const isSelected = activePoint === i;
-            const fill = i === 0 ? '#6dd5c2' : '#ffc078';
-            const tag = i === 0 ? 'A' : 'B';
+            const fill = i === 0 ? '#6dd5c2' : i === points.length - 1 ? '#ffc078' : '#65a7eb';
+            const tag = String.fromCharCode(65 + i);
 
             return (
               <g

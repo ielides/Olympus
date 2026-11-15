@@ -37,7 +37,7 @@ export interface HazardManifest {
 export interface PointOfInterest {
   id: string;
   name: string;
-  kind: 'ciencia' | 'aterrizaje';
+  kind: 'ciencia' | 'aterrizaje' | 'parada';
   region: string;
   lat: number;
   lon: number;

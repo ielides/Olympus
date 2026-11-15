@@ -173,34 +173,6 @@ export default function MarsGlobe({
     controls.autoRotate = false;
     controlsRef.current = controls;
 
-    // Starfield Background
-    const starCount = 2000;
-    const starGeo = new THREE.BufferGeometry();
-    const starPositions = new Float32Array(starCount * 3);
-    const starColors = new Float32Array(starCount * 3);
-    for (let i = 0; i < starCount; i++) {
-      const r = 180 + Math.random() * 200;
-      const phi = Math.acos(Math.random() * 2 - 1);
-      const theta = Math.random() * Math.PI * 2;
-      starPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-      starPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-      starPositions[i * 3 + 2] = r * Math.cos(phi);
-
-      const br = 0.6 + Math.random() * 0.4;
-      starColors[i * 3] = br;
-      starColors[i * 3 + 1] = br * 0.95;
-      starColors[i * 3 + 2] = br * (0.85 + Math.random() * 0.25);
-    }
-    starGeo.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
-    starGeo.setAttribute('color', new THREE.BufferAttribute(starColors, 3));
-    const starMat = new THREE.PointsMaterial({
-      size: 1.1,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-    });
-    scene.add(new THREE.Points(starGeo, starMat));
-
     // Martian Lighting: Movable high-contrast directional Sunlight + Soft ambient
     const sunLight = new THREE.DirectionalLight(0xfff5e4, 3.2);
     scene.add(sunLight);
@@ -413,8 +385,6 @@ export default function MarsGlobe({
       displacementTexture.dispose();
       hillshadeTexture.dispose();
       layerTexture.dispose();
-      starGeo.dispose();
-      starMat.dispose();
       atmosGeometry.dispose();
       atmosMaterial.dispose();
       scene.clear();
@@ -491,8 +461,9 @@ export default function MarsGlobe({
     points.forEach(p => {
       const isSelected = p.id === selectedId;
       const isLanding = p.kind === 'aterrizaje';
-      const color = isLanding ? 0x76d7c4 : 0xffc078;
-      const radius = isLanding ? 0.11 : 0.09;
+      const isWaypoint = p.kind === 'parada';
+      const color = isLanding ? 0x76d7c4 : isWaypoint ? 0x65a7eb : 0xffc078;
+      const radius = isLanding ? 0.11 : isWaypoint ? 0.085 : 0.095;
 
       // Base marker sphere
       const geo = new THREE.SphereGeometry(radius * (isSelected ? 1.4 : 1.0), 16, 16);

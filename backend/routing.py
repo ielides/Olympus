@@ -64,13 +64,16 @@ def shortest_route(levels, start, end, transform, radius, mission="robotica", de
     """Compiled Dijkstra over the safe eight-neighbor graph with geodesic distances."""
     if mission not in ("robotica", "humana"):
         raise RouteError("Perfil de misión no válido")
+    max_level = 2 if mission == "humana" else 3
     h, w = levels.shape
     if h * w > MAX_CELLS:
         raise RouteError("Área demasiado grande; elige puntos más cercanos")
-    valid = (levels >= 1) & (levels <= 3)
+    valid = (levels >= 1) & (levels <= max_level)
     for name, point in (("Origen", start), ("Destino", end)):
         if not valid[point]:
-            raise RouteError(f"{name} en nivel {int(levels[point])} (4 o sin datos); selecciona una celda de nivel 1–3")
+            raise RouteError(
+                f"{name} en nivel {int(levels[point])} (nivel 4, sin datos o superior al máximo {max_level} para misión {mission}); selecciona una celda de nivel 1–{max_level}"
+            )
     if start == end:
         return [start], 0.
     costs = np.array([0, 1, 3, 9, 0] if mission == 'robotica' else [0, 1, 5, 20, 0], dtype=np.float64)
@@ -121,12 +124,15 @@ def astar(levels, start, end, transform, radius, mission="robotica", deadline=No
     """Eight neighbors, geodesic edge lengths, no diagonal corner cutting."""
     if mission not in ("robotica", "humana"):
         raise RouteError("Perfil de misión no válido")
+    max_level = 2 if mission == "humana" else 3
     h, w = levels.shape
     if h * w > MAX_CELLS:
         raise RouteError("Área demasiado grande; elige puntos más cercanos")
-    walkable = (levels >= 1) & (levels <= 3)
+    walkable = (levels >= 1) & (levels <= max_level)
     if not walkable[start] or not walkable[end]:
-        raise RouteError("Origen o destino en nivel 4 o sin datos; selecciona una celda de nivel 1–3")
+        raise RouteError(
+            f"Origen o destino en nivel 4, sin datos o superior al máximo {max_level} para misión {mission}; selecciona una celda de nivel 1–{max_level}"
+        )
     costs = (0, 1, 3, 9) if mission == "robotica" else (0, 1, 5, 20)
 
     def lonlat(r, c):
@@ -171,6 +177,9 @@ def astar(levels, start, end, transform, radius, mission="robotica", deadline=No
 
 
 def calculate_route(origin, destination, mission, active_layers=None):
+    if mission not in ("robotica", "humana"):
+        raise RouteError("Perfil de misión no válido")
+    max_level = 2 if mission == "humana" else 3
     if active_layers is None:
         if not RASTER.is_file():
             raise RouteError("Genera primero data/generated/peligrosidad_combinada.tif con backend/hazards.py")
@@ -256,10 +265,10 @@ def calculate_route(origin, destination, mission, active_layers=None):
                     transform = transform * Affine.scale(stride, stride)
                     start = (min(start[0] // stride, levels.shape[0] - 1), min(start[1] // stride, levels.shape[1] - 1))
                     end = (min(end[0] // stride, levels.shape[0] - 1), min(end[1] // stride, levels.shape[1] - 1))
-                    # Preserve start/end transitable state if original cell was transitable
-                    if 1 <= orig_start_val <= 3 and levels[start] in (0, 4):
+                    # Preserve start/end transitable state if original cell was transitable for mission
+                    if 1 <= orig_start_val <= max_level and not (1 <= levels[start] <= max_level):
                         levels[start] = orig_start_val
-                    if 1 <= orig_end_val <= 3 and levels[end] in (0, 4):
+                    if 1 <= orig_end_val <= max_level and not (1 <= levels[end] <= max_level):
                         levels[end] = orig_end_val
 
                 path, _ = shortest_route(levels, start, end, transform, radius, mission, deadline)
@@ -271,7 +280,9 @@ def calculate_route(origin, destination, mission, active_layers=None):
 
         if not path:
             layers_desc = ", ".join(active_layers)
-            raise RouteError(f"No hay conexión transitable con las capas activas ({layers_desc}) en el área de búsqueda (margen: {margin_used} celdas)")
+            raise RouteError(
+                f"No hay conexión transitable para misión {mission} (niveles 1–{max_level}) con las capas activas ({layers_desc}) en el área de búsqueda (margen: {margin_used} celdas)"
+            )
 
         coords = [points[0]]
         for row, col in path:
@@ -288,6 +299,11 @@ def calculate_route(origin, destination, mission, active_layers=None):
             if stride_used == 1
             else f"resolución adaptativa de {res_effective:.1f} m (escala ×{stride_used} para gran distancia de {length / 1000:.1f} km)"
         )
+        profile_note = (
+            "Perfil humano (niveles 1–2; niveles 3, 4 y sin datos excluidos)."
+            if mission == "humana"
+            else "Perfil máquina/robótico (niveles 1–3; nivel 4 y sin datos excluidos)."
+        )
 
         return {
             "originId": origin["id"],
@@ -301,7 +317,7 @@ def calculate_route(origin, destination, mission, active_layers=None):
             "notes": (
                 f"Dijkstra compilado sobre {resolution_note}. "
                 f"Capas calculadas ({len(active_layers)}): {active_str}. "
-                f"Niveles 4 y sin datos excluidos. "
+                f"{profile_note} "
                 "Porcentajes por celdas de la ruta; no representan una probabilidad de seguridad."
             ),
         }
