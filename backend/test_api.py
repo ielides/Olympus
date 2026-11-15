@@ -41,3 +41,26 @@ def test_coordinates_do_not_fallback_to_demo(monkeypatch):
     response=client.post('/routes/coordinates',json={'points':[{'lon':0,'lat':0},{'lon':1,'lat':0}]})
     assert response.status_code==422
     assert 'Genera primero' in response.json()['detail']
+
+
+def test_custom_active_layers():
+    response = client.post('/routes/coordinates', json={
+        'points': [{'lon': 77.45, 'lat': 18.45}, {'lon': 77.35, 'lat': 18.5}],
+        'mission': 'robotica',
+        'activeLayers': ['geologia', 'pendientes']
+    })
+    assert response.status_code == 200
+    data = response.json()
+    assert data['distanceKm'] > 0
+    assert 'Capas calculadas (2)' in data['notes']
+
+
+def test_empty_active_layers():
+    response = client.post('/routes/coordinates', json={
+        'points': [{'lon': 77.45, 'lat': 18.45}, {'lon': 77.35, 'lat': 18.5}],
+        'mission': 'robotica',
+        'activeLayers': []
+    })
+    assert response.status_code == 422
+    assert 'al menos una capa' in response.json()['detail']
+

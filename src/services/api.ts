@@ -22,16 +22,18 @@ export async function fetchHealth(): Promise<{status: string; route_engine: stri
   return parseResponse(await fetch(`${API_BASE}/health`));
 }
 
-export async function planCoordinates(points: Coordinate[], mission: MissionType): Promise<RouteResult> {
+export async function planCoordinates(points: Coordinate[], mission: MissionType, activeLayers?: string[]): Promise<RouteResult> {
   return parseResponse<RouteResult>(await fetch(`${API_BASE}/routes/coordinates`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({points, mission}),
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ points, mission, activeLayers }),
   }));
 }
 
-export async function planRoute(originId: string, destinationId: string, mission: MissionType): Promise<RouteResult> {
+export async function planRoute(originId: string, destinationId: string, mission: MissionType, activeLayers?: string[]): Promise<RouteResult> {
   return parseResponse<RouteResult>(await fetch(`${API_BASE}/routes/plan`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ originId, destinationId, mission }),
+    body: JSON.stringify({ originId, destinationId, mission, activeLayers }),
   }));
 }

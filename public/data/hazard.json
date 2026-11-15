@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-14T22:17:55.852870+00:00",
+  "generatedAt": "2026-11-15T01:11:43.520589+00:00",
   "rule": "maximum",
   "sources": {
     "geologia": "geologia_viabilidad_1a4.tif",
@@ -58,5 +58,12 @@
       64
     ]
   ],
-  "raster": "peligrosidad_combinada.tif"
+  "raster": "peligrosidad_combinada.tif",
+  "activeLayers": [
+    "combinada",
+    "radiacion",
+    "geologia",
+    "accidentes",
+    "pendientes"
+  ]
 }

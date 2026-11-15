@@ -1,0 +1,148 @@
+{
+  "generatedAt": "2026-11-15T01:11:43.520589+00:00",
+  "width": 46080,
+  "height": 23040,
+  "radiusM": 3396190.0,
+  "resolutionM": 463.0935415503709,
+  "boundsLonLat": [
+    -180.00387421842743,
+    -90.00193710921371,
+    180.00387421842743,
+    90.00193710921371
+  ],
+  "previewFactor": 16,
+  "colors": [
+    [
+      32,
+      43,
+      58
+    ],
+    [
+      51,
+      180,
+      122
+    ],
+    [
+      244,
+      203,
+      82
+    ],
+    [
+      235,
+      133,
+      60
+    ],
+    [
+      169,
+      48,
+      64
+    ]
+  ],
+  "layers": {
+    "combinada": {
+      "id": "combinada",
+      "title": "Peligrosidad Combinada",
+      "description": "Integraci\u00f3n conservadora de las 4 capas: cualquier 4 veta la celda. El valor m\u00e1ximo (1-3) determina el riesgo.",
+      "file": "combinada.png",
+      "counts": {
+        "0": 4146904,
+        "1": 192468513,
+        "2": 115914409,
+        "3": 307412531,
+        "4": 441740843
+      },
+      "percentages": {
+        "0": 0.39,
+        "1": 18.13,
+        "2": 10.92,
+        "3": 28.96,
+        "4": 41.61
+      },
+      "source": "combinada"
+    },
+    "radiacion": {
+      "id": "radiacion",
+      "title": "Radiaci\u00f3n C\u00f3smica / Solar",
+      "description": "Dosis estimada anual en funci\u00f3n de la elevaci\u00f3n y columna atmosf\u00e9rica protectora.",
+      "file": "radiacion.png",
+      "counts": {
+        "0": 0,
+        "1": 365958650,
+        "2": 128645773,
+        "3": 209171436,
+        "4": 357907341
+      },
+      "percentages": {
+        "0": 0.0,
+        "1": 34.47,
+        "2": 12.12,
+        "3": 19.7,
+        "4": 33.71
+      },
+      "source": "radiacion_viabilidad_1a4.tif"
+    },
+    "geologia": {
+      "id": "geologia",
+      "title": "Geolog\u00eda y Unidades de Superficie",
+      "description": "Clasificaci\u00f3n de 44 unidades geol\u00f3gicas del mapa global USGS/NASA seg\u00fan firmeza y rugosidad.",
+      "file": "geologia.png",
+      "counts": {
+        "0": 44710,
+        "1": 204010009,
+        "2": 423476288,
+        "3": 259895060,
+        "4": 174257133
+      },
+      "percentages": {
+        "0": 0.0,
+        "1": 19.22,
+        "2": 39.89,
+        "3": 24.48,
+        "4": 16.41
+      },
+      "source": "geologia_viabilidad_1a4.tif"
+    },
+    "accidentes": {
+      "id": "accidentes",
+      "title": "Accidentes Geol\u00f3gicos y Morfol\u00f3gicos",
+      "description": "Bordes de cr\u00e1ter, calderas, rilles, escarpes, fallas tect\u00f3nicas y crestas.",
+      "file": "accidentes.png",
+      "counts": {
+        "0": 0,
+        "1": 1059753870,
+        "2": 458221,
+        "3": 478367,
+        "4": 992742
+      },
+      "percentages": {
+        "0": 0.0,
+        "1": 99.82,
+        "2": 0.04,
+        "3": 0.05,
+        "4": 0.09
+      },
+      "source": "accidentes_viabilidad_1a4.tif"
+    },
+    "pendientes": {
+      "id": "pendientes",
+      "title": "Inclinaci\u00f3n y Pendientes",
+      "description": "Inclinaci\u00f3n del terreno: <5\u00b0 suave (1), 5-10\u00b0 moderada (2), 10-20\u00b0 dif\u00edcil (3), >20\u00b0 intransitable (4).",
+      "file": "pendientes.png",
+      "counts": {
+        "0": 8157431,
+        "1": 1032708651,
+        "2": 17922584,
+        "3": 2691783,
+        "4": 202751
+      },
+      "percentages": {
+        "0": 0.77,
+        "1": 97.27,
+        "2": 1.69,
+        "3": 0.25,
+        "4": 0.02
+      },
+      "source": "pendientesviables0.tif"
+    }
+  }
+}

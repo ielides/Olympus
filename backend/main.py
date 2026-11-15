@@ -49,6 +49,7 @@ class RouteRequest(BaseModel):
     originId: str = Field(min_length=1)
     destinationId: str = Field(min_length=1)
     mission: Literal["robotica", "humana"]
+    activeLayers: list[str] | None = None
 
 class LineString(BaseModel):
     type: Literal["LineString"] = "LineString"
@@ -79,6 +80,7 @@ class Coordinate(BaseModel):
 class CoordinateRequest(BaseModel):
     points: list[Coordinate] = Field(min_length=2, max_length=8)
     mission: Literal["robotica", "humana"] = "robotica"
+    activeLayers: list[str] | None = None
 
 
 @app.post("/routes/coordinates", response_model=RouteResponse)
@@ -90,7 +92,9 @@ def route_coordinates(request: CoordinateRequest):
     try:
         for i, (a, b) in enumerate(zip(request.points, request.points[1:])):
             results.append(calculate_route({"id": str(i), **a.model_dump()},
-                                           {"id": str(i+1), **b.model_dump()}, request.mission))
+                                           {"id": str(i+1), **b.model_dump()},
+                                           request.mission,
+                                           request.activeLayers))
     except RouteError as exc:
         logger.warning('route_rejected elapsed=%.3fs reason=%s payload=%s',time.monotonic()-started,str(exc),request.model_dump_json())
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -166,7 +170,7 @@ def plan_route(request: RouteRequest):
         return great_circle_demo(origin, destination)
     if ENGINE == "raster":
         try:
-            return calculate_route(origin, destination, request.mission)
+            return calculate_route(origin, destination, request.mission, request.activeLayers)
         except RouteError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
     if ENGINE == "pyqgis":
