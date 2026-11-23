@@ -1,7 +1,13 @@
 MIT License with Mandatory Attribution (MIT-Attribution)
+Licencia MIT con Mención y Atribución Obligatoria
 
 Copyright (c) 2026 Equipo Olympus (ielides, braulioc8, guillermomiguel2018-prog)
-Repository: https://github.com/ielides/Olympus
+Repository / Repositorio: https://github.com/ielides/Olympus
+Live Demo (Cráter Gusev 1 m/px): https://olympus.brauliodev.com
+
+================================================================================
+ENGLISH
+================================================================================
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -11,18 +17,20 @@ copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
 1. Copyright and License Notice:
-   The above copyright notice, this permission notice, and the attribution
-   condition below shall be included in all copies or substantial portions
-   of the Software.
+   The above copyright notice, this permission notice, and the mandatory
+   attribution condition below shall be included in all copies or substantial
+   portions of the Software.
 
-2. Mandatory Attribution (Mencion Obligatoria):
+2. Mandatory Attribution:
    Any use, reproduction, modification, redistribution, public deployment,
    academic publication, presentation, or derivative work based on the
-   Software (in whole or in part) MUST explicitly credit the original authors:
-   "Equipo Olympus (ielides, braulioc8, guillermomiguel2018-prog)"
+   Software (in whole or in part) MUST explicitly credit and mention the
+   original authors:
+     "Equipo Olympus (ielides, braulioc8, guillermomiguel2018-prog)"
    and include a visible reference or link to the original repository:
-   "https://github.com/ielides/Olympus"
-   in the project documentation, about/credits section, or public interface.
+     "https://github.com/ielides/Olympus"
+   in the project documentation, README, about/credits section, or public
+   user interface.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -31,3 +39,39 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+ESPAÑOL
+================================================================================
+
+Por la presente se concede permiso, libre de cargos, a cualquier persona que
+obtenga una copia de este software y de los archivos de documentación asociados
+(el "Software"), para utilizar el Software sin restricción, incluyendo sin
+limitación los derechos a usar, copiar, modificar, fusionar, publicar,
+distribuir, sublicenciar, y/o vender copias del Software, y a permitir a las
+personas a las que se les proporcione el Software a hacer lo mismo, sujeto a
+las siguientes condiciones:
+
+1. Aviso de Derechos de Autor y Licencia:
+   El aviso de copyright anterior, este aviso de permiso y la cláusula de
+   mención obligatoria descrita a continuación deberán incluirse en todas las
+   copias o partes sustanciales del Software.
+
+2. Mención y Atribución Obligatoria:
+   Cualquier uso, reproducción, modificación, redistribución, despliegue
+   público, publicación académica, presentación o trabajo derivado basado en
+   este Software (total o parcialmente) DEBE mencionar y dar crédito explícito
+   a los autores originales:
+     "Equipo Olympus (ielides, braulioc8, guillermomiguel2018-prog)"
+   e incluir una referencia o enlace visible al repositorio oficial:
+     "https://github.com/ielides/Olympus"
+   en la documentación del proyecto, archivo README, sección de créditos o
+   interfaz pública.
+
+EL SOFTWARE SE PROPORCIONA "TAL CUAL", SIN GARANTÍA DE NINGÚN TIPO, EXPRESA O
+IMPLÍCITA, INCLUYENDO PERO NO LIMITADO A GARANTÍAS DE COMERCIALIZACIÓN,
+IDONEIDAD PARA UN PROPÓSITO PARTICULAR Y NO INFRACCIÓN. EN NINGÚN CASO LOS
+AUTORES O TITULARES DEL COPYRIGHT SERÁN RESPONSABLES DE NINGUNA RECLAMACIÓN,
+DAÑOS U OTRAS RESPONSABILIDADES, YA SEA EN UNA ACCIÓN DE CONTRATO, AGRAVIO O
+CUALQUIER OTRO MOTIVO, QUE SURJA DE O EN CONEXIÓN CON EL SOFTWARE O EL USO U
+OTRO TIPO DE ACCIONES EN EL SOFTWARE.
