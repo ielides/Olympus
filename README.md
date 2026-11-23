@@ -194,4 +194,4 @@ npm run build
 
 ## Licencia y atribucion
 
-Este proyecto se distribuye bajo la licencia **MIT License with Mandatory Attribution** incluida en el archivo `LICENSE`. Puedes usar, copiar, modificar y redistribuir el software, pero **es obligatorio mencionar a los autores originales** (`Equipo Olympus: ielides, braulioc8, guillermomiguel2018-prog`) y enlazar al repositorio `https://github.com/ielides/Olympus` en cualquier uso, publicacion o trabajo derivado.
+Este proyecto se distribuye bajo la licencia **MIT License with Mandatory Attribution** incluida en el archivo `LICENSE`. Puedes usar, copiar, modificar y redistribuir el software, pero **es obligatorio mencionar a los autores originales** (`Equipo Olympus: ielides, braulioc8, guillermomiguel2018-prog, Adrián Ugsha`) y enlazar al repositorio `https://github.com/ielides/Olympus` en cualquier uso, publicacion o trabajo derivado.
